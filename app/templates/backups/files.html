@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Restore - {{ destination.name }} - RedOps Vault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-0">Restore &mdash; {{ destination.name }}</h1>
+        <p class="text-muted mb-0">Files found at this destination. Restoring replaces data in this vault &mdash; see the confirmation step for exactly what.</p>
+    </div>
+    <a href="{{ url_for('backups.list_backups') }}" class="btn btn-outline-secondary">Back to Backups</a>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">Couldn't list files at this destination: {{ error }}</div>
+{% elif not files %}
+<div class="card shadow-sm">
+    <div class="card-body text-center text-muted py-4">No files found at this destination.</div>
+</div>
+{% else %}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Size</th>
+                    <th>Last Modified</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                <tr>
+                    <td class="text-break">{{ file.name }}</td>
+                    <td class="text-nowrap">{{ (file.size / 1048576) | round(1) if file.size else '-' }}{{ ' MB' if file.size }}</td>
+                    <td class="text-nowrap">{{ file.last_modified.strftime('%Y-%m-%d %H:%M') if file.last_modified else '-' }}</td>
+                    <td class="text-nowrap text-end">
+                        <a href="{{ url_for('backups.download_file', backup_id=destination.id, filename=file.name) }}" class="btn btn-sm btn-outline-secondary">Download</a>
+                        <a href="{{ url_for('backups.restore_confirm', backup_id=destination.id, filename=file.name) }}" class="btn btn-sm btn-outline-warning">Restore&hellip;</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -189,6 +189,20 @@ def read_large_object_raw(pg_conn, oid):
         lo.close()
 
 
+def write_large_object_raw(pg_conn, raw_bytes):
+    """Writes raw bytes into a brand-new Postgres Large Object, unchanged --
+    used by restore, which writes back the still-encrypted ciphertext blob
+    exactly as it was pulled from a backup archive. Returns the new oid,
+    which is unrelated to whatever oid the object had when it was backed
+    up (Large Object oids aren't portable across databases).
+    """
+    lo = pg_conn.lobject(mode="wb")
+    oid = lo.oid
+    lo.write(raw_bytes)
+    lo.close()
+    return oid
+
+
 def encrypt_field(plaintext):
     """Encrypt a short string field (e.g. a credential password) for storage
     in a LargeBinary column. Returns bytes: 12-byte nonce + ciphertext+tag.

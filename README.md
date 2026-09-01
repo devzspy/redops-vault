@@ -101,6 +101,9 @@ Bootstrap 5.
   assets as an interactive graph, with a timeline scrubber and PNG export.
 - **Agent scaffolding** — generates a ready-to-paste system prompt so an AI
   agent can drive an engagement via the MCP server.
+- **Backup & restore** — scheduled or on-demand backups to S3-compatible
+  storage, Azure, GCP, or SFTP; browse and restore from any configured
+  destination (admin-only).
 - **API, CLI & MCP server** — a Bearer-token JSON API at `/api/v1`, a
   terminal CLI (`redops.py`), and an MCP server for AI agent access. See
   [Operator CLI](#operator-cli) and [MCP server](#mcp-server-ai-agent-access).
@@ -206,6 +209,10 @@ so it requires outbound internet access. For air-gapped installs, mirror
   even on an already-issued session.
 - This is a small-team tool with no per-engagement access control: any
   authenticated operator or admin can see every engagement.
+- A full-vault restore wipes and replaces the entire database from the
+  archive, including users and API keys — it's a point-in-time restore,
+  not a merge. `instance/encryption.key` must match between backup and
+  restore for loot/credential data to stay decryptable.
 
 ## License
 

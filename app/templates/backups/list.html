@@ -62,6 +62,9 @@
             <div class="d-flex flex-wrap gap-2 mt-3">
                 <a href="{{ url_for('backups.edit_backup_form', backup_id=destination.id) }}" class="btn btn-sm btn-outline-secondary">Manage</a>
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#backup-logs-{{ destination.id }}">Show Logs</button>
+                {% if logged_in_user.is_admin() %}
+                <a href="{{ url_for('backups.browse_files', backup_id=destination.id) }}" class="btn btn-sm btn-outline-warning">Restore&hellip;</a>
+                {% endif %}
                 <form method="post" action="{{ url_for('backups.run_backup_now', backup_id=destination.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
                     <button type="submit" class="btn btn-sm btn-outline-primary">Run Now</button>

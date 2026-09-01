@@ -1,9 +1,11 @@
+import os
+import tempfile
 from datetime import datetime, timezone
 
-from flask import abort, flash, redirect, render_template, request, url_for
+from flask import Response, abort, flash, redirect, render_template, request, url_for
 from flask_jwt_extended import jwt_required
 
-from app.auth_utils import csrf_protect, current_user
+from app.auth_utils import csrf_protect, current_user, role_required, role_required_csrf
 from app.blueprints.backups import bp
 from app.extensions import db
 from app.models.backup import (
@@ -24,7 +26,9 @@ from app.models.backup import (
     BackupRunLog,
 )
 from app.models.engagement import Engagement
-from app.services import crypto_service, scheduler_service
+from app.services import backup_transport, crypto_service, restore_service, scheduler_service
+from app.services.backup_transport import BackupTransportError
+from app.services.restore_service import RestoreError
 
 
 def _engagements():
@@ -223,4 +227,119 @@ def delete_backup(backup_id):
     db.session.commit()
     scheduler_service.remove_job(backup_id)
     flash(f"Backup destination '{name}' deleted.", "success")
+    return redirect(url_for("backups.list_backups"))
+
+
+def _download_to_temp(destination, filename):
+    fd, path = tempfile.mkstemp(prefix="redops-restore-", suffix=".zip")
+    os.close(fd)
+    try:
+        backup_transport.download(destination, filename, path)
+    except Exception:
+        os.remove(path)
+        raise
+    return path
+
+
+@bp.route("/<int:backup_id>/files")
+@role_required("admin")
+def browse_files(backup_id):
+    destination = BackupDestination.query.get_or_404(backup_id)
+    files = None
+    error = None
+    try:
+        files = backup_transport.list_files(destination)
+    except BackupTransportError as exc:
+        error = str(exc)
+    return render_template("backups/files.html", destination=destination, files=files, error=error)
+
+
+@bp.route("/<int:backup_id>/files/<path:filename>/download")
+@role_required("admin")
+def download_file(backup_id, filename):
+    destination = BackupDestination.query.get_or_404(backup_id)
+    local_path = None
+    try:
+        local_path = _download_to_temp(destination, filename)
+        with open(local_path, "rb") as f:
+            data = f.read()
+    except BackupTransportError as exc:
+        flash(f"Couldn't download '{filename}': {exc}", "danger")
+        return redirect(url_for("backups.browse_files", backup_id=backup_id))
+    finally:
+        if local_path and os.path.exists(local_path):
+            os.remove(local_path)
+
+    response = Response(data, mimetype="application/zip")
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@bp.route("/<int:backup_id>/files/<path:filename>/restore")
+@role_required("admin")
+def restore_confirm(backup_id, filename):
+    destination = BackupDestination.query.get_or_404(backup_id)
+    local_path = None
+    try:
+        local_path = _download_to_temp(destination, filename)
+        info = restore_service.inspect_archive(local_path)
+    except (BackupTransportError, RestoreError) as exc:
+        flash(f"Couldn't read '{filename}': {exc}", "danger")
+        return redirect(url_for("backups.browse_files", backup_id=backup_id))
+    finally:
+        if local_path and os.path.exists(local_path):
+            os.remove(local_path)
+
+    if not info["can_restore_full"] and not info["can_restore_loot_only"]:
+        flash(
+            f"'{filename}' can't be auto-restored (engagement-scoped or empty archives aren't supported) "
+            "-- download it and restore manually if needed.",
+            "warning",
+        )
+        return redirect(url_for("backups.browse_files", backup_id=backup_id))
+
+    return render_template("backups/restore_confirm.html", destination=destination, filename=filename, info=info)
+
+
+@bp.route("/<int:backup_id>/files/<path:filename>/restore", methods=["POST"])
+@role_required_csrf("admin")
+def restore_execute(backup_id, filename):
+    destination = BackupDestination.query.get_or_404(backup_id)
+    mode = request.form.get("mode")
+    if mode not in ("full", "loot_only"):
+        abort(400, description="Invalid restore mode")
+    if request.form.get("confirm_phrase") != "RESTORE":
+        flash("Confirmation phrase didn't match -- nothing was restored.", "danger")
+        return redirect(url_for("backups.restore_confirm", backup_id=backup_id, filename=filename))
+
+    local_path = None
+    try:
+        local_path = _download_to_temp(destination, filename)
+        info = restore_service.inspect_archive(local_path)
+        if mode == "full":
+            if not info["can_restore_full"]:
+                abort(400, description="This archive doesn't contain a full database export")
+            summary = restore_service.restore_full_archive(local_path)
+            flash(
+                f"Restored '{filename}': {sum(summary['tables'].values())} rows across "
+                f"{len(summary['tables'])} tables, {summary['loot_files_restored']}/"
+                f"{summary['loot_files_in_archive']} loot files. You may need to log in again.",
+                "success",
+            )
+        else:
+            if not info["can_restore_loot_only"]:
+                abort(400, description="This archive doesn't contain loot files to restore")
+            summary = restore_service.restore_loot_only(local_path)
+            flash(
+                f"Restored {summary['restored']}/{summary['total_in_archive']} loot files from '{filename}' "
+                f"({summary['skipped']} skipped, no matching record).",
+                "success",
+            )
+    except (BackupTransportError, RestoreError) as exc:
+        flash(f"Restore failed: {exc}", "danger")
+        return redirect(url_for("backups.browse_files", backup_id=backup_id))
+    finally:
+        if local_path and os.path.exists(local_path):
+            os.remove(local_path)
+
     return redirect(url_for("backups.list_backups"))

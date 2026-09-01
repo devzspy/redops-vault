@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Confirm Restore - {{ destination.name }} - RedOps Vault{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Confirm Restore</h1>
+
+<div class="card shadow-sm border-danger">
+    <div class="card-body">
+        <p class="mb-2"><strong>Destination:</strong> {{ destination.name }}</p>
+        <p class="mb-3"><strong>Archive:</strong> <span class="text-break">{{ filename }}</span></p>
+
+        {% if info.can_restore_full %}
+        <div class="alert alert-danger">
+            <strong>This replaces the entire vault database.</strong> Every table &mdash; engagements, users,
+            findings, credentials, loot metadata, API keys, everything &mdash; is wiped and reloaded from this
+            archive. Anything created or changed since this backup was taken is permanently lost. Loot file
+            contents included in the archive are restored too; loot storage from before this restore is orphaned
+            (not deleted, just unreferenced) rather than cleaned up automatically.
+        </div>
+        <p class="text-muted small">You may need to log in again afterward &mdash; your account is restored from the
+            archive too, and may differ (or not exist) at that point in time.</p>
+
+        <h2 class="h6 mt-3">What's in this archive</h2>
+        <div class="table-responsive mb-3" style="max-height: 300px;">
+            <table class="table table-sm">
+                <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+                <tbody>
+                    {% for table, count in info.table_counts.items() %}
+                    <tr><td>{{ table }}</td><td>{{ count }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="mb-3">Loot files included: <strong>{{ info.loot_file_count }}</strong></p>
+        {% set mode = 'full' %}
+        {% set confirm_label = 'Restore Full Vault' %}
+        {% else %}
+        <div class="alert alert-warning">
+            <strong>This re-attaches loot file contents to existing records.</strong> For each loot file in this
+            archive, if a loot record with a matching ID already exists in this vault, its stored file content is
+            replaced with the archived copy. No other table or record is touched. Loot files with no matching
+            record in this vault are skipped.
+        </div>
+        <p class="mb-3">Loot files in archive: <strong>{{ info.loot_file_count }}</strong></p>
+        {% set mode = 'loot_only' %}
+        {% set confirm_label = 'Restore Loot Files' %}
+        {% endif %}
+
+        <form method="post" action="{{ url_for('backups.restore_execute', backup_id=destination.id, filename=filename) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <input type="hidden" name="mode" value="{{ mode }}">
+            <div class="mb-3">
+                <label class="form-label">Type <strong>RESTORE</strong> to confirm</label>
+                <input type="text" class="form-control" name="confirm_phrase" autocomplete="off" required>
+            </div>
+            <button type="submit" class="btn btn-danger">{{ confirm_label }}</button>
+            <a href="{{ url_for('backups.browse_files', backup_id=destination.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
