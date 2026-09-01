@@ -1,0 +1,57 @@
+{% from "_status_badge.html" import status_badge %}
+{% set _loot_endpoints = ['loot.list_loot', 'loot.upload_form', 'loot.file_detail'] %}
+{% set _cred_endpoints = ['loot.list_credentials', 'loot.new_credential_form'] %}
+{% set _kc_endpoints = ['killchain.timeline', 'killchain.new_entry_form', 'killchain.edit_entry_form'] %}
+{% set _findings_endpoints = ['findings.list_findings', 'findings.new_finding_form', 'findings.edit_finding_form'] %}
+{% set _ioc_endpoints = ['ioc.list_iocs', 'ioc.new_ioc_form', 'ioc.edit_ioc_form'] %}
+{% set _infra_endpoints = ['infrastructure.list_infrastructure', 'infrastructure.new_node_form', 'infrastructure.edit_node_form', 'infrastructure.new_edge_form', 'infrastructure.edit_edge_form'] %}
+{% set _tm_endpoints = ['threat_model.view_threat_model', 'threat_model.edit_threat_model_form'] %}
+{% set _target_endpoints = ['targets.list_targets', 'targets.new_target_form', 'targets.edit_target_form', 'targets.new_edge_form', 'targets.edit_edge_form'] %}
+<div class="engagement-subnav mb-4">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h1 class="h4 mb-0">
+            <a class="text-reset text-decoration-none" href="{{ url_for('engagements.engagement_detail', engagement_id=engagement.id) }}">{{ engagement.name }}</a>
+        </h1>
+        <span class="text-muted">{{ engagement.client_name }}</span>
+        {{ status_badge(engagement) }}
+        <a href="{{ url_for('engagements.edit_engagement_form', engagement_id=engagement.id) }}" class="btn btn-sm btn-outline-secondary ms-auto">Edit</a>
+    </div>
+    <ul class="nav nav-pills">
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint == 'engagements.engagement_detail' else '' }}" href="{{ url_for('engagements.engagement_detail', engagement_id=engagement.id) }}">Overview</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint in _tm_endpoints else '' }}" href="{{ url_for('threat_model.view_threat_model', engagement_id=engagement.id) }}">Threat Model</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint in _loot_endpoints else '' }}" href="{{ url_for('loot.list_loot', engagement_id=engagement.id) }}">Loot</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint in _cred_endpoints else '' }}" href="{{ url_for('loot.list_credentials', engagement_id=engagement.id) }}">Credentials</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint in _kc_endpoints else '' }}" href="{{ url_for('killchain.timeline', engagement_id=engagement.id) }}">Kill Chain</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint in _findings_endpoints else '' }}" href="{{ url_for('findings.list_findings', engagement_id=engagement.id) }}">Findings</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint in _ioc_endpoints else '' }}" href="{{ url_for('ioc.list_iocs', engagement_id=engagement.id) }}">IOCs</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint in _target_endpoints else '' }}" href="{{ url_for('targets.list_targets', engagement_id=engagement.id) }}">Targets &amp; Victims</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint in _infra_endpoints else '' }}" href="{{ url_for('infrastructure.list_infrastructure', engagement_id=engagement.id) }}">Infrastructure</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint in ('infrastructure.network_map', 'infrastructure.network_map_g6') else '' }}" href="{{ url_for('infrastructure.network_map', engagement_id=engagement.id) }}">Network Map</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint == 'infrastructure.attack_map' else '' }}" href="{{ url_for('infrastructure.attack_map', engagement_id=engagement.id) }}">Attack Map</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('killchain.report_html', engagement_id=engagement.id) }}" target="_blank" rel="noopener">Report&nbsp;<span aria-hidden="true">&#8599;</span></a>
+        </li>
+    </ul>
+</div>

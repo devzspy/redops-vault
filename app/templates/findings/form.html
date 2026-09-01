@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if finding else 'New' }} Finding - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/quill/quill.snow.css') }}">
+
+<h2 class="h5 mb-3">{{ 'Edit Finding' if finding else 'Add Finding' }}</h2>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('findings.edit_finding', engagement_id=engagement.id, finding_id=finding.id) if finding else url_for('findings.create_finding', engagement_id=engagement.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" name="title" value="{{ finding.title or '' }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Severity</label>
+                    <select class="form-select" name="severity" required>
+                        {% for s in severities %}
+                        <option value="{{ s }}" {{ 'selected' if finding and finding.severity == s else '' }}>{{ s | capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Details</label>
+                <div id="details-editor" class="finding-editor">{{ (finding.details or '') | safe }}</div>
+                <textarea name="details" class="d-none"></textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Attached loot</label>
+                    <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                        {% set linked_loot_ids = finding.loot_files|map(attribute='id')|list if finding else [] %}
+                        {% for file in files %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="loot_file_ids" value="{{ file.id }}" id="lf{{ file.id }}" {{ 'checked' if file.id in linked_loot_ids else '' }}>
+                            <label class="form-check-label" for="lf{{ file.id }}">{{ file.original_filename }}</label>
+                        </div>
+                        {% else %}
+                        <span class="text-muted">No loot files uploaded yet.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Affected hosts</label>
+                    <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                        {% set linked_node_ids = finding.infra_nodes|map(attribute='id')|list if finding else [] %}
+                        {% for node in nodes %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="infra_node_ids" value="{{ node.id }}" id="in{{ node.id }}" {{ 'checked' if node.id in linked_node_ids else '' }}>
+                            <label class="form-check-label" for="in{{ node.id }}">{{ node.name }} ({{ node.node_type|node_type_label }})</label>
+                        </div>
+                        {% else %}
+                        <span class="text-muted">No targets or infrastructure recorded yet.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Related credentials</label>
+                    <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                        {% set linked_cred_ids = finding.credentials|map(attribute='id')|list if finding else [] %}
+                        {% for credential in credentials %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="credential_ids" value="{{ credential.id }}" id="cr{{ credential.id }}" {{ 'checked' if credential.id in linked_cred_ids else '' }}>
+                            <label class="form-check-label" for="cr{{ credential.id }}">{{ credential.display_label() }}</label>
+                        </div>
+                        {% else %}
+                        <span class="text-muted">No credentials recorded yet.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Related IOCs</label>
+                    <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                        {% set linked_ioc_ids = finding.iocs|map(attribute='id')|list if finding else [] %}
+                        {% for ioc in iocs %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="ioc_ids" value="{{ ioc.id }}" id="io{{ ioc.id }}" {{ 'checked' if ioc.id in linked_ioc_ids else '' }}>
+                            <label class="form-check-label" for="io{{ ioc.id }}">{{ ioc.display_label() }}</label>
+                        </div>
+                        {% else %}
+                        <span class="text-muted">No IOCs recorded yet.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Related kill chain entries</label>
+                <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                    {% set linked_entry_ids = finding.killchain_entries|map(attribute='id')|list if finding else [] %}
+                    {% for entry in killchain_entries %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="killchain_entry_ids" value="{{ entry.id }}" id="kc{{ entry.id }}" {{ 'checked' if entry.id in linked_entry_ids else '' }}>
+                        <label class="form-check-label" for="kc{{ entry.id }}">{{ entry.stage_label() }} &mdash; {{ entry.title }}</label>
+                    </div>
+                    {% else %}
+                    <span class="text-muted">No kill chain entries recorded yet.</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Remediation</label>
+                <div id="remediation-editor" class="finding-editor">{{ (finding.remediation or '') | safe }}</div>
+                <textarea name="remediation" class="d-none"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if finding else 'Add Finding' }}</button>
+            <a href="{{ url_for('findings.list_findings', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/quill/quill.js') }}"></script>
+<script src="{{ url_for('static', filename='js/findings-editor.js') }}"></script>
+{% endblock %}

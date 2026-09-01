@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}MCP Server - RedOps Vault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">MCP Server &amp; AI Agent Access</h1>
+</div>
+<p class="text-muted">
+    RedOps Vault exposes a JSON API at <code>/api/v1</code>, authenticated with
+    Bearer API keys instead of the cookie session this web UI uses, and ships a
+    companion <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">MCP</a>
+    server on top of it &mdash; so an AI agent (Claude, or any other MCP client)
+    can drive the full engagement lifecycle directly: create/update engagements,
+    log findings, upload/download loot, record kill chain activity and
+    infrastructure, track credentials, manage the task checklist, and map
+    ATT&amp;CK techniques. Admin (user management) and Backups are intentionally
+    left out of both the API and the MCP tools &mdash; those stay human-only.
+</p>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <h2 class="h5">1. Create an API key</h2>
+        <p>The agent authenticates as a real user, so give it its own account:</p>
+        <ol class="mb-0">
+            <li>
+                Log in as an admin and go to <strong>Users</strong>, create a user
+                with the <code>agent</code> role (behaves like <code>operator</code>
+                &mdash; full working access &mdash; but keeps agent-driven activity
+                distinguishable from human operators in the audit trail). An
+                existing <code>operator</code>/<code>admin</code> account works too
+                if you'd rather reuse one.
+            </li>
+            <li>
+                Log in as that user and go to
+                <a href="{{ url_for('api_keys.list_keys') }}">API Keys</a>, click
+                <strong>Generate Key</strong>, and copy the token shown &mdash;
+                it's only displayed once (<code>rov_...</code>).
+            </li>
+        </ol>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <h2 class="h5">2. Run the MCP server</h2>
+        <pre class="bg-dark text-light p-3 rounded"><code>pip install -r requirements.txt   # picks up mcp + httpx
+export REDOPS_API_KEY=rov_...
+python mcp_server/server.py</code></pre>
+        <p class="mb-0">
+            It talks to <code>http://localhost:5000/api/v1</code> by default; set
+            <code>REDOPS_API_BASE_URL</code> if the app runs elsewhere. It speaks
+            the standard MCP stdio transport, so in practice your MCP client
+            launches it for you rather than you running it by hand &mdash; the
+            command above is mainly useful for a quick manual smoke test (with an
+            MCP inspector) or debugging.
+        </p>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <h2 class="h5">3. Point an MCP client at it</h2>
+        <p>The repo ships a project-level <code>.mcp.json</code> for Claude Code:</p>
+        <pre class="bg-dark text-light p-3 rounded"><code>{
+  "mcpServers": {
+    "redops-vault": {
+      "command": "python",
+      "args": ["mcp_server/server.py"],
+      "env": {
+        "REDOPS_API_BASE_URL": "http://localhost:5000/api/v1",
+        "REDOPS_API_KEY": "${REDOPS_API_KEY}"
+      }
+    }
+  }
+}</code></pre>
+        <p>
+            Export <code>REDOPS_API_KEY</code> in your shell and (re)start Claude
+            Code from the repo directory &mdash; the <code>redops-vault</code>
+            tools show up automatically. For other MCP clients (Claude Desktop,
+            etc.), add an equivalent server entry to their own config using the
+            same command/env.
+        </p>
+        <p class="mb-0">
+            Loot upload/download tools take a local file path rather than
+            embedding file bytes in the tool call, since loot files can be many
+            GB &mdash; the path is resolved on whichever machine is running
+            <code>mcp_server/server.py</code>.
+        </p>
+    </div>
+</div>
+
+<div class="alert alert-warning">
+    The agent's access mirrors whichever user account issued the key: an
+    <code>agent</code>/<code>operator</code>/<code>admin</code> key gets full
+    read/write access to every engagement, while a <code>blueteam</code> key is
+    read-only and restricted to assigned engagements, same as in the web UI.
+    Treat an API key like a password &mdash; anyone holding it can act as that
+    user through the API; revoke it at
+    <a href="{{ url_for('api_keys.list_keys') }}" class="alert-link">API Keys</a>
+    if it's ever exposed.
+</div>
+
+<h2 class="h4 mt-4">Available tools</h2>
+<p class="text-muted">78 tools across 12 domains, one <code>register(mcp)</code> module per domain in <code>mcp_server/tools/</code>.</p>
+
+<div class="accordion" id="toolsAccordion">
+
+    {% macro tool_group(id, title, tools) %}
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#{{ id }}">
+                {{ title }} <span class="badge bg-secondary ms-2">{{ tools|length }}</span>
+            </button>
+        </h2>
+        <div id="{{ id }}" class="accordion-collapse collapse" data-bs-parent="#toolsAccordion">
+            <div class="accordion-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <tbody>
+                    {% for name, desc in tools %}
+                        <tr>
+                            <td style="width: 30%"><code>{{ name }}</code></td>
+                            <td class="text-muted">{{ desc }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endmacro %}
+
+    {{ tool_group("toolsEngagements", "Engagements", [
+        ("engagement_list", "List engagements (excludes archived unless requested)."),
+        ("engagement_create", "Create a new engagement."),
+        ("engagement_get", "Get full detail for one engagement, incl. threat model, links, assignments, and counts."),
+        ("engagement_update", "Update an engagement's fields (partial update)."),
+        ("engagement_set_status", "Set status: backlog, planning, active, completed."),
+        ("engagement_toggle_archive", "Archive or restore an engagement."),
+        ("engagement_link_list", "List an engagement's reference links."),
+        ("engagement_link_create", "Add a reference link."),
+        ("engagement_link_update", "Update a reference link."),
+        ("engagement_link_delete", "Delete a reference link."),
+    ]) }}
+
+    {{ tool_group("toolsFindings", "Findings", [
+        ("finding_list", "List an engagement's findings, sorted by severity then title."),
+        ("finding_create", "Create a finding, optionally cross-linked to loot/infra/credentials/IOCs/kill chain."),
+        ("finding_get", "Get one finding."),
+        ("finding_update", "Update a finding (partial update)."),
+        ("finding_delete", "Delete a finding."),
+        ("finding_report_markdown", "Render all findings as a single portable Markdown report."),
+    ]) }}
+
+    {{ tool_group("toolsLoot", "Loot files", [
+        ("loot_list", "List loot file metadata (paginated)."),
+        ("loot_upload", "Upload a local file as loot; encrypted at rest. Can auto-create a target infra node from associated_host."),
+        ("loot_get", "Get metadata for one loot file."),
+        ("loot_download", "Download and decrypt a loot file to a local path (returns path/size/sha256, not raw bytes)."),
+        ("loot_update", "Update loot metadata (category, description, tags, associated host)."),
+        ("loot_delete", "Delete a loot file."),
+    ]) }}
+
+    {{ tool_group("toolsCredentials", "Credentials", [
+        ("credential_list", "List credentials with secrets masked (has_password etc. booleans only)."),
+        ("credential_create", "Record a credential; secret fields are AES-256-GCM encrypted at rest."),
+        ("credential_get", "Get a credential; pass reveal=true to decrypt secret values."),
+        ("credential_update", "Update a credential (any secret field submitted overwrites it)."),
+        ("credential_delete", "Delete a credential."),
+        ("credential_totp", "Get the current live TOTP code for a credential with a TOTP secret."),
+    ]) }}
+
+    {{ tool_group("toolsKillchain", "Kill chain", [
+        ("killchain_list", "List an engagement's kill chain entries."),
+        ("killchain_create", "Add a kill chain entry (one of the 7 Lockheed Martin stages)."),
+        ("killchain_get", "Get one kill chain entry."),
+        ("killchain_update", "Update a kill chain entry (partial update)."),
+        ("killchain_delete", "Delete a kill chain entry."),
+        ("killchain_report_html", "Render the kill-chain/IOC client report as HTML."),
+        ("killchain_report_pdf", "Render the kill-chain/IOC client report as a PDF, saved to a local path."),
+    ]) }}
+
+    {{ tool_group("toolsInfra", "Infrastructure", [
+        ("infra_node_list", "List attacker-owned infrastructure nodes (redirectors, team servers, C2, ...)."),
+        ("infra_node_create", "Add an attacker-owned infrastructure node."),
+        ("infra_node_get", "Get one infrastructure node, including its services."),
+        ("infra_node_update", "Update an infrastructure node (partial update)."),
+        ("infra_node_delete", "Delete an infrastructure node and its services."),
+        ("infra_service_create", "Add a service (e.g. https:443) to a node."),
+        ("infra_service_delete", "Remove a service from a node."),
+        ("infra_edge_list", "List network paths between infrastructure nodes."),
+        ("infra_edge_create", "Add a network path between two infrastructure nodes."),
+        ("infra_edge_update", "Update a network path."),
+        ("infra_edge_delete", "Delete a network path."),
+        ("infra_graph", "Get the full network graph: all nodes, edges, and kill chain entries by time."),
+    ]) }}
+
+    {{ tool_group("toolsTargets", "Targets & victims", [
+        ("target_list", "List target/victim nodes."),
+        ("target_create", "Add a target/victim node."),
+        ("target_get", "Get one target/victim node."),
+        ("target_update", "Update a target/victim node."),
+        ("target_delete", "Delete a target/victim node."),
+        ("target_edge_list", "List network paths between target/victim nodes."),
+        ("target_edge_create", "Add a network path between two target/victim nodes."),
+        ("target_edge_update", "Update a network path between target/victim nodes."),
+        ("target_edge_delete", "Delete a network path between target/victim nodes."),
+    ]) }}
+
+    {{ tool_group("toolsIoc", "IOCs", [
+        ("ioc_list", "List indicators of compromise."),
+        ("ioc_create", "Record an IOC (host, location, file hash, drop time)."),
+        ("ioc_get", "Get one IOC."),
+        ("ioc_update", "Update an IOC."),
+        ("ioc_delete", "Delete an IOC."),
+    ]) }}
+
+    {{ tool_group("toolsThreatModel", "Threat model", [
+        ("threat_model_get", "Get an engagement's threat model / attack plan / objectives."),
+        ("threat_model_save", "Save (fully overwrite) an engagement's threat model document."),
+    ]) }}
+
+    {{ tool_group("toolsTodo", "Todos", [
+        ("todo_list", "List an engagement's task checklist."),
+        ("todo_create", "Add a task."),
+        ("todo_get", "Get one task."),
+        ("todo_claim", "Claim a task (assigns it to the API key's owning user)."),
+        ("todo_handoff", "Hand off a task, clearing its assignee and recording handoff notes."),
+        ("todo_complete", "Mark a task done."),
+        ("todo_reopen", "Reopen a completed task."),
+        ("todo_delete", "Delete a task."),
+    ]) }}
+
+    {{ tool_group("toolsAttack", "ATT&CK", [
+        ("attack_tactics", "List the ATT&CK Enterprise matrix (tactics with top-level techniques)."),
+        ("attack_technique_get", "Get one technique by attack_id, incl. its engagement mappings."),
+        ("attack_refresh", "Re-sync the local ATT&CK cache from MITRE's STIX feed. Admin-role key only; slow, outbound call."),
+        ("attack_map_technique_to_loot", "Map a technique to a loot file as evidence."),
+        ("attack_map_technique_to_killchain", "Map a technique to a kill chain entry as evidence."),
+        ("attack_unmap_technique", "Remove a technique mapping."),
+    ]) }}
+
+    {{ tool_group("toolsActivity", "Activity log", [
+        ("activity_list", "List an engagement's audit-trail activity log, most recent first."),
+    ]) }}
+
+</div>
+{% endblock %}

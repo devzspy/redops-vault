@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Edit Threat Model - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/quill/quill.snow.css') }}">
+
+<h2 class="h5 mb-3">Threat Model &amp; Attack Plan</h2>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('threat_model.save_threat_model', engagement_id=engagement.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+
+            <div class="mb-4">
+                <label class="form-label">Threat Model</label>
+                <div class="form-text mb-2">Adversary profile: who is being emulated, their capabilities, motivations, and assumed access.</div>
+                <div id="threat-model-editor" class="finding-editor">{{ (plan.threat_model or '') | safe }}</div>
+                <textarea name="threat_model" class="d-none"></textarea>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Attack Plan</label>
+                <div class="form-text mb-2">The planned approach: phases, techniques, and pretexts intended for this engagement.</div>
+                <div id="attack-plan-editor" class="finding-editor">{{ (plan.attack_plan or '') | safe }}</div>
+                <textarea name="attack_plan" class="d-none"></textarea>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Actions on Objectives</label>
+                <div class="form-text mb-2">The goals that define success for this engagement, and what achieving them looks like.</div>
+                <div id="objectives-editor" class="finding-editor">{{ (plan.objectives or '') | safe }}</div>
+                <textarea name="objectives" class="d-none"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{{ url_for('threat_model.view_threat_model', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/quill/quill.js') }}"></script>
+<script src="{{ url_for('static', filename='js/findings-editor.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% block title %}{{ engagement.name }} - RedOps Vault{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+{% if engagement.description %}
+<p>{{ engagement.description }}</p>
+{% endif %}
+
+<div class="row mb-4">
+    <div class="col-md-4"><strong>Start:</strong> {{ engagement.start_date or '-' }}</div>
+    <div class="col-md-4"><strong>End:</strong> {{ engagement.end_date or '-' }}</div>
+    <div class="col-md-4"><strong>Created by:</strong> {{ engagement.created_by.username }}</div>
+</div>
+<div class="row mb-4">
+    <div class="col-md-4"><strong>Kill chain model:</strong> {{ kill_chain_model_labels.get(engagement.kill_chain_model, engagement.kill_chain_model) }}</div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h6">Status</h2>
+        <form method="post" action="{{ url_for('engagements.change_status', engagement_id=engagement.id) }}" class="d-flex gap-2 mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <select name="status" class="form-select w-auto">
+                {% for s in statuses %}
+                <option value="{{ s }}" {{ 'selected' if engagement.status == s else '' }}>{{ status_labels[s] }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-outline-primary">Update Status</button>
+        </form>
+        <form method="post" action="{{ url_for('engagements.toggle_archive', engagement_id=engagement.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <button type="submit" class="btn btn-outline-{{ 'secondary' if engagement.is_archived else 'dark' }} btn-sm">
+                {{ 'Restore from archive' if engagement.is_archived else 'Archive engagement' }}
+            </button>
+        </form>
+    </div>
+</div>
+
+{% set is_admin = logged_in_user.is_admin() %}
+{% set is_operator = logged_in_user.role == 'operator' %}
+{% if is_admin or (deletion_request and is_operator) %}
+<div class="card mb-4 border-danger">
+    <div class="card-body">
+        <h2 class="h6 text-danger">Danger Zone</h2>
+        {% if deletion_request %}
+        <div class="alert alert-warning">
+            <strong>Deletion requested</strong> by {{ deletion_request.requested_by.username if deletion_request.requested_by else '-' }}
+            on {{ deletion_request.requested_at.strftime('%Y-%m-%d %H:%M') }}.
+            This requires approval from a <em>different</em> admin or operator before the engagement is permanently deleted.
+        </div>
+        <div class="d-flex gap-2">
+            {% if (is_admin or is_operator) and logged_in_user.id != deletion_request.requested_by_id %}
+            <form method="post" action="{{ url_for('engagements.approve_engagement_deletion', engagement_id=engagement.id) }}" data-confirm="This will PERMANENTLY delete '{{ engagement.name }}' and all of its loot, credentials, findings, and other data. This cannot be undone. Continue?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                <button type="submit" class="btn btn-danger btn-sm">Approve &amp; Delete Permanently</button>
+            </form>
+            {% endif %}
+            {% if is_admin %}
+            <form method="post" action="{{ url_for('engagements.cancel_engagement_deletion', engagement_id=engagement.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Cancel Request</button>
+            </form>
+            {% endif %}
+        </div>
+        {% elif is_admin %}
+        <p class="text-muted small">Deleting an engagement permanently removes it and all associated loot, credentials, findings, and other data. This requires approval from a second admin or operator before it takes effect.</p>
+        <form method="post" action="{{ url_for('engagements.request_engagement_deletion', engagement_id=engagement.id) }}" data-confirm="Request deletion of '{{ engagement.name }}'? This still requires approval from another admin or operator before anything is deleted.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Request Deletion</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Links</h2>
+    <span class="text-muted small">Reference URLs are plain text, not clickable, for OPSEC</span>
+</div>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('engagements.create_link', engagement_id=engagement.id) }}" class="row g-2 mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="col-md-2">
+                <select name="link_type" class="form-select">
+                    {% for lt in link_types %}
+                    <option value="{{ lt }}">{{ lt|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="form-control" name="url" placeholder="URL, e.g. https://example.com/portal" required>
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control" name="label" placeholder="Label (optional)">
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" name="notes" placeholder="Notes (optional)">
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">Add</button>
+            </div>
+        </form>
+
+        {% if links %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Label</th>
+                        <th>URL</th>
+                        <th>Notes</th>
+                        <th>Added</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for link in links %}
+                    <tr>
+                        <td><span class="badge bg-{{ 'secondary' if link.link_type == 'internal' else 'info' }}">{{ link.link_type_label() }}</span></td>
+                        <td>{{ link.label or '-' }}</td>
+                        <td class="text-break"><span class="user-select-all">{{ link.url }}</span></td>
+                        <td class="small text-muted">{{ link.notes or '-' }}</td>
+                        <td class="text-nowrap small text-muted">{{ link.added_by.username if link.added_by else '-' }}<br>{{ link.added_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#edit-link-{{ link.id }}">Edit</button>
+                            <form method="post" action="{{ url_for('engagements.delete_link', engagement_id=engagement.id, link_id=link.id) }}" class="d-inline" data-confirm="Delete this link?">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="edit-link-{{ link.id }}">
+                        <td colspan="6" class="bg-body-tertiary">
+                            <form method="post" action="{{ url_for('engagements.update_link', engagement_id=engagement.id, link_id=link.id) }}" class="row g-2 align-items-center py-1">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                                <div class="col-md-2">
+                                    <select name="link_type" class="form-select form-select-sm">
+                                        {% for lt in link_types %}
+                                        <option value="{{ lt }}" {{ 'selected' if link.link_type == lt else '' }}>{{ lt|capitalize }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="text" class="form-control form-control-sm" name="url" value="{{ link.url }}" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="text" class="form-control form-control-sm" name="label" value="{{ link.label or '' }}" placeholder="Label (optional)">
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="text" class="form-control form-control-sm" name="notes" value="{{ link.notes or '' }}" placeholder="Notes (optional)">
+                                </div>
+                                <div class="col-md-1 d-flex gap-1">
+                                    <button type="submit" class="btn btn-sm btn-primary w-100">Save</button>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0">No links recorded yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Todo Checklist</h2>
+</div>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('todo.create_todo', engagement_id=engagement.id) }}" class="row g-2 mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="col-md-4">
+                <input type="text" class="form-control" name="title" placeholder="New task, e.g. Escalate privileges on DC01" required>
+            </div>
+            <div class="col-md-6">
+                <input type="text" class="form-control" name="notes" placeholder="Notes (optional)">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Add Task</button>
+            </div>
+        </form>
+
+        <h3 class="h6 text-muted">In Progress <span class="badge bg-secondary">{{ in_progress_todos|length }}</span></h3>
+        {% if in_progress_todos %}
+        {% for todo in in_progress_todos %}
+        <div class="border rounded p-2 mb-2">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <strong>{{ todo.title }}</strong>
+                    <div class="small text-muted">Working: {{ todo.assignee.username if todo.assignee else '-' }} &middot; updated {{ todo.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    {% if todo.notes %}<div class="small mt-1">{{ todo.notes }}</div>{% endif %}
+                </div>
+                <div class="d-flex gap-1 flex-shrink-0">
+                    <form method="post" action="{{ url_for('todo.complete_todo', engagement_id=engagement.id, todo_id=todo.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <button type="submit" class="btn btn-sm btn-outline-success">Mark Done</button>
+                    </form>
+                    <form method="post" action="{{ url_for('todo.delete_todo', engagement_id=engagement.id, todo_id=todo.id) }}" data-confirm="Delete this task?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+            <form method="post" action="{{ url_for('todo.handoff_todo', engagement_id=engagement.id, todo_id=todo.id) }}" class="d-flex gap-2 mt-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                <input type="text" class="form-control form-control-sm" name="handoff_notes" placeholder="Notes for next shift (optional)">
+                <button type="submit" class="btn btn-sm btn-outline-warning text-nowrap">Hand Off</button>
+            </form>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="text-muted small">Nobody is currently working a task.</p>
+        {% endif %}
+
+        <h3 class="h6 text-muted mt-3">Open <span class="badge bg-secondary">{{ available_todos|length }}</span></h3>
+        {% if available_todos %}
+        {% for todo in available_todos %}
+        <div class="border rounded p-2 mb-2">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <strong>{{ todo.title }}</strong>
+                    {% if todo.notes %}<div class="small mt-1">{{ todo.notes }}</div>{% endif %}
+                    {% if todo.handoff_notes %}<div class="small text-warning mt-1">Handoff notes: {{ todo.handoff_notes }}</div>{% endif %}
+                </div>
+                <div class="d-flex gap-1 flex-shrink-0">
+                    <form method="post" action="{{ url_for('todo.claim_todo', engagement_id=engagement.id, todo_id=todo.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Claim</button>
+                    </form>
+                    <form method="post" action="{{ url_for('todo.complete_todo', engagement_id=engagement.id, todo_id=todo.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <button type="submit" class="btn btn-sm btn-outline-success">Mark Done</button>
+                    </form>
+                    <form method="post" action="{{ url_for('todo.delete_todo', engagement_id=engagement.id, todo_id=todo.id) }}" data-confirm="Delete this task?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="text-muted small">No open tasks.</p>
+        {% endif %}
+
+        {% if done_todos %}
+        <button class="btn btn-sm btn-outline-secondary mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#done-todos">
+            Show completed ({{ done_todos|length }})
+        </button>
+        <div class="collapse mt-2" id="done-todos">
+            {% for todo in done_todos %}
+            <div class="border rounded p-2 mb-2 bg-body-tertiary">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong class="text-decoration-line-through">{{ todo.title }}</strong>
+                        <div class="small text-muted">Completed by {{ todo.completed_by.username if todo.completed_by else '-' }} on {{ todo.completed_at.strftime('%Y-%m-%d %H:%M') if todo.completed_at else '-' }}</div>
+                    </div>
+                    <div class="d-flex gap-1 flex-shrink-0">
+                        <form method="post" action="{{ url_for('todo.reopen_todo', engagement_id=engagement.id, todo_id=todo.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Reopen</button>
+                        </form>
+                        <form method="post" action="{{ url_for('todo.delete_todo', engagement_id=engagement.id, todo_id=todo.id) }}" data-confirm="Delete this task?">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Activity</h2>
+    <span class="text-muted small">Most recent {{ activity_entries|length }} event(s)</span>
+</div>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Occurred</th>
+                    <th>Recorded</th>
+                    <th>Actor</th>
+                    <th>Activity</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for entry in activity_entries %}
+                <tr>
+                    <td class="text-nowrap text-muted small">{{ entry.occurred_range_label() or '-' }}</td>
+                    <td class="text-nowrap text-muted small">{{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td class="text-nowrap">{{ entry.actor_label }}</td>
+                    <td>{{ entry.summary }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No activity recorded yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

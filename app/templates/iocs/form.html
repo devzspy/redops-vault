@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if ioc else 'Add' }} IOC - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<h2 class="h5 mb-3">{{ 'Edit IOC' if ioc else 'Add IOC' }}</h2>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('ioc.edit_ioc', engagement_id=engagement.id, ioc_id=ioc.id) if ioc else url_for('ioc.create_ioc', engagement_id=engagement.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Host</label>
+                    {% set node_names = nodes|map(attribute='name')|list %}
+                    <select class="form-select" name="host">
+                        <option value="" {{ 'selected' if not ioc or not ioc.host else '' }}>N/A</option>
+                        {% for node in nodes %}
+                        <option value="{{ node.name }}" {{ 'selected' if ioc and ioc.host == node.name else '' }}>{{ node.name }}</option>
+                        {% endfor %}
+                        {% if ioc and ioc.host and ioc.host not in node_names %}
+                        <option value="{{ ioc.host }}" selected>{{ ioc.host }} (not in infrastructure)</option>
+                        {% endif %}
+                    </select>
+                    <div class="form-text">Only infrastructure nodes with the "target" role are listed.</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Location / path</label>
+                    <input type="text" class="form-control" name="location" value="{{ ioc.location or '' }}" placeholder="e.g. C:\Windows\Temp\evil.exe, s3://bucket/key">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Hash type</label>
+                    <select class="form-select" name="hash_type">
+                        <option value="" {{ 'selected' if not ioc or not ioc.hash_type else '' }}>&mdash; none &mdash;</option>
+                        {% for h in hash_types %}
+                        <option value="{{ h }}" {{ 'selected' if ioc and ioc.hash_type == h else '' }}>{{ h.upper() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label class="form-label">Hash value</label>
+                    <input type="text" class="form-control" name="hash_value" value="{{ ioc.hash_value or '' }}" placeholder="md5sum / sha256 checksum">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Time dropped</label>
+                    <input type="datetime-local" class="form-control" name="dropped_at" value="{{ ioc.dropped_at.strftime('%Y-%m-%dT%H:%M') if ioc and ioc.dropped_at else '' }}">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" name="notes" rows="3">{{ ioc.notes or '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if ioc else 'Add IOC' }}</button>
+            <a href="{{ url_for('ioc.list_iocs', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

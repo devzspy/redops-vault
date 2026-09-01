@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Scaffolding - RedOps Vault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Agent Scaffolding</h1>
+</div>
+<p class="text-muted">
+    Pick an engagement and RedOps Vault generates a ready-to-paste scaffold &mdash;
+    objectives, current checklist state, and operating instructions &mdash; so an AI
+    agent can drive the engagement through the MCP server on its own instead of being
+    prompted through every step. See <a href="{{ url_for('help.mcp_server') }}">MCP Server</a>
+    for one-time API key / client setup.
+</p>
+
+<div class="card shadow-sm" style="max-width: 640px;">
+    <div class="card-body">
+        {% if engagements %}
+        <form method="get" action="#" onsubmit="return false;">
+            <label for="scaffolding-engagement" class="form-label">Engagement</label>
+            <div class="d-flex gap-2">
+                <select id="scaffolding-engagement" class="form-select">
+                    {% for engagement in engagements %}
+                    <option value="{{ url_for('scaffolding.generate', engagement_id=engagement.id) }}">
+                        {{ engagement.name }} &mdash; {{ engagement.client_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="button" id="scaffolding-go" class="btn btn-primary text-nowrap">Generate</button>
+            </div>
+        </form>
+        {% else %}
+        <p class="text-muted mb-0">No engagements available yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+(function () {
+    var button = document.getElementById('scaffolding-go');
+    if (!button) return;
+    button.addEventListener('click', function () {
+        var select = document.getElementById('scaffolding-engagement');
+        if (select && select.value) {
+            window.location = select.value;
+        }
+    });
+})();
+</script>
+{% endblock %}

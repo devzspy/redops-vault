@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ file.original_filename }} - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('loot.list_loot', engagement_id=engagement.id) }}">Loot</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ file.original_filename }}</li>
+    </ol>
+</nav>
+<h1 class="h3 mb-3">{{ file.original_filename }}</h1>
+
+<div class="row">
+    <div class="col-md-7">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h2 class="h6">Details</h2>
+                <form method="post" action="{{ url_for('loot.edit_loot', engagement_id=engagement.id, file_id=file.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" name="category">
+                            {% for c in ['document','screenshot','pcap','key_cert','note','other'] %}
+                            <option value="{{ c }}" {{ 'selected' if file.category == c else '' }}>{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Origin</label>
+                        {% set node_names = nodes|map(attribute='name')|list %}
+                        {% set is_known = file.associated_host and file.associated_host in node_names %}
+                        <select class="form-select" name="associated_host" id="associated-host-select">
+                            {% for node in nodes %}
+                            <option value="{{ node.name }}" {{ 'selected' if file.associated_host == node.name else '' }}>{{ node.name }} ({{ node.node_type|node_type_label }})</option>
+                            {% endfor %}
+                            <option value="__other__" {{ 'selected' if not is_known else '' }}>Other</option>
+                        </select>
+                        <div class="mt-2" id="associated-host-other-wrap">
+                            <input type="text" class="form-control" name="associated_host_other" id="associated-host-other-input" value="{{ (file.associated_host if not is_known else '') or '' }}" placeholder="Where was this found? e.g. 10.0.0.5 or web01.corp.local">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <input type="text" class="form-control" name="tags" value="{{ file.tags or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3">{{ file.description or '' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <a href="{{ url_for('loot.download_loot', engagement_id=engagement.id, file_id=file.id) }}" class="btn btn-success">Download</a>
+                    <form method="post" action="{{ url_for('loot.delete_loot', engagement_id=engagement.id, file_id=file.id) }}" class="d-inline" data-confirm="Delete this loot file permanently?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <button type="submit" class="btn btn-outline-danger">Delete</button>
+                    </form>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h6">Integrity</h2>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Size</dt><dd class="col-sm-8">{{ (file.file_size_bytes / 1024) | round(1) }} KB</dd>
+                    <dt class="col-sm-4">SHA-256</dt><dd class="col-sm-8"><code class="text-break">{{ file.sha256_plaintext }}</code></dd>
+                    <dt class="col-sm-4">Uploaded by</dt><dd class="col-sm-8">{{ file.uploaded_by.username }}</dd>
+                    <dt class="col-sm-4">Uploaded at</dt><dd class="col-sm-8">{{ file.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h6">ATT&amp;CK Technique Mappings</h2>
+                <ul class="list-group mb-3">
+                    {% for mapping in file.technique_mappings %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <a href="{{ url_for('attack.technique_detail', attack_id=mapping.technique.attack_id) }}">{{ mapping.technique.attack_id }} - {{ mapping.technique.name }}</a>
+                        <form method="post" action="{{ url_for('attack.delete_mapping', mapping_id=mapping.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                        </form>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">No techniques mapped yet.</li>
+                    {% endfor %}
+                </ul>
+                <form method="post" action="{{ url_for('attack.map_technique_to_loot', engagement_id=engagement.id, file_id=file.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                    <div class="mb-2">
+                        <label class="form-label">Technique ID</label>
+                        <input type="text" class="form-control" name="attack_id" list="technique-list" placeholder="e.g. T1566" required>
+                        <datalist id="technique-list">
+                            {% for t in techniques %}
+                            <option value="{{ t.attack_id }}">{{ t.name }}</option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary btn-sm">Map Technique</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var select = document.getElementById('associated-host-select');
+    var wrap = document.getElementById('associated-host-other-wrap');
+    function sync() {
+        wrap.style.display = select.value === '__other__' ? '' : 'none';
+    }
+    select.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

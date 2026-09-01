@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Threat Model - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Threat Model &amp; Attack Plan</h2>
+    <a href="{{ url_for('threat_model.edit_threat_model_form', engagement_id=engagement.id) }}" class="btn btn-outline-primary btn-sm">
+        {{ 'Edit' if plan and not plan.is_empty() else 'Add threat model' }}
+    </a>
+</div>
+
+{% if plan and not plan.is_empty() %}
+<div class="small text-muted mb-3">
+    Last updated {{ plan.updated_at.strftime('%Y-%m-%d %H:%M') }}{{ ' by ' ~ plan.updated_by.username if plan.updated_by else '' }}
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h3 class="h6">Threat Model</h3>
+        {% if plan.threat_model %}
+        <div class="finding-rich-text">{{ plan.threat_model | safe }}</div>
+        {% else %}
+        <p class="text-muted small mb-0">Not documented yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h3 class="h6">Attack Plan</h3>
+        {% if plan.attack_plan %}
+        <div class="finding-rich-text">{{ plan.attack_plan | safe }}</div>
+        {% else %}
+        <p class="text-muted small mb-0">Not documented yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h3 class="h6">Actions on Objectives</h3>
+        {% if plan.objectives %}
+        <div class="finding-rich-text">{{ plan.objectives | safe }}</div>
+        {% else %}
+        <p class="text-muted small mb-0">Not documented yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+        <p class="text-muted mb-3">No threat model or attack plan has been recorded for this engagement yet.</p>
+        <a href="{{ url_for('threat_model.edit_threat_model_form', engagement_id=engagement.id) }}" class="btn btn-primary">Add threat model</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

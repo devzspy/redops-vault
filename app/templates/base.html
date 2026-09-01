@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}RedOps Vault{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('index') }}">RedOps Vault</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navMain">
+            {% if logged_in_user %}
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint in ('engagements', 'loot', 'killchain', 'infrastructure') else '' }}" href="{{ url_for('engagements.list_engagements') }}">Engagements</a></li>
+                <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint == 'attack' else '' }}" href="{{ url_for('attack.browse') }}">ATT&amp;CK</a></li>
+                <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint == 'backups' else '' }}" href="{{ url_for('backups.list_backups') }}">Backups</a></li>
+                <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint == 'scaffolding' else '' }}" href="{{ url_for('scaffolding.select') }}">Scaffolding</a></li>
+                {% if logged_in_user.is_admin() %}
+                <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint == 'admin' else '' }}" href="{{ url_for('admin.list_users') }}">Users</a></li>
+                {% endif %}
+            </ul>
+            <ul class="navbar-nav align-items-lg-center">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.blueprint == 'api_keys' else '' }}" href="{{ url_for('api_keys.list_keys') }}">API Keys</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.blueprint == 'help' else '' }}" href="{{ url_for('help.mcp_server') }}">Help</a>
+                </li>
+                <li class="nav-item navbar-account-item">
+                    <a class="nav-link {{ 'active' if request.blueprint == 'account' else '' }}" href="{{ url_for('account.change_password_form') }}" title="Account settings">
+                        {{ logged_in_user.username }}
+                        <span class="badge bg-{{ 'danger' if logged_in_user.role == 'admin' else ('info' if logged_in_user.role == 'blueteam' else ('warning' if logged_in_user.role == 'agent' else 'secondary')) }} ms-1">{{ logged_in_user.role|capitalize }}</span>
+                    </a>
+                </li>
+                <li class="nav-item ms-lg-2 my-2 my-lg-0">
+                    <form method="post" action="{{ url_for('auth.logout') }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <button type="submit" class="btn btn-outline-light btn-sm">Log out</button>
+                    </form>
+                </li>
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'danger' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</div>
+<script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

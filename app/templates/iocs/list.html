@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}IOCs - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Indicators of Compromise</h2>
+    <a href="{{ url_for('ioc.new_ioc_form', engagement_id=engagement.id) }}" class="btn btn-primary">Add IOC</a>
+</div>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Host</th>
+                    <th>Location / Path</th>
+                    <th>Hash</th>
+                    <th>Dropped At</th>
+                    <th>Findings</th>
+                    <th>Added by</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for ioc in iocs %}
+                <tr>
+                    <td>{{ ioc.host or '-' }}</td>
+                    <td class="text-break">{{ ioc.location or '-' }}</td>
+                    <td class="text-break">
+                        {% if ioc.hash_value %}
+                        <code>{{ ioc.hash_type_label() }}: {{ ioc.hash_value }}</code>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>{{ ioc.dropped_at.strftime('%Y-%m-%d %H:%M') if ioc.dropped_at else '-' }}</td>
+                    <td>
+                        {% for finding in ioc.findings %}
+                        <a class="badge finding-severity-badge finding-severity-{{ finding.severity }} text-decoration-none" href="{{ url_for('findings.edit_finding_form', engagement_id=engagement.id, finding_id=finding.id) }}">{{ finding.title }}</a>
+                        {% else %}
+                        -
+                        {% endfor %}
+                    </td>
+                    <td>{{ ioc.added_by.username }}</td>
+                    <td class="text-end">
+                        <a href="{{ url_for('ioc.edit_ioc_form', engagement_id=engagement.id, ioc_id=ioc.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <form method="post" action="{{ url_for('ioc.delete_ioc', engagement_id=engagement.id, ioc_id=ioc.id) }}" data-confirm="Delete this IOC?" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No IOCs recorded yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

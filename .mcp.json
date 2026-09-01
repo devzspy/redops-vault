@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "redops-vault": {
+      "command": "python",
+      "args": ["mcp_server/server.py"],
+      "env": {
+        "REDOPS_API_BASE_URL": "http://localhost:5000/api/v1",
+        "REDOPS_API_KEY": "${REDOPS_API_KEY}"
+      }
+    }
+  }
+}

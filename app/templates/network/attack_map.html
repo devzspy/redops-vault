@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Attack Map - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="h5 mb-0">Attack Map</h2>
+        <p class="text-muted small mb-0">Targets &amp; victims only &mdash; how they're associated with one another, and the kill chain's progression across them.</p>
+    </div>
+    <button type="button" id="export-map-png" class="btn btn-sm btn-outline-secondary" disabled>Export PNG</button>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-9">
+        <div class="card shadow-sm mb-3">
+            <div id="attack-map" data-graph-url="{{ url_for('infrastructure.graph_json', engagement_id=engagement.id) }}" data-export-filename="attack-map-{{ engagement.name }}"></div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <button type="button" id="timeline-step-back" class="btn btn-sm btn-outline-secondary" title="Step back">&laquo;</button>
+                    <button type="button" id="timeline-play" class="btn btn-sm btn-primary" title="Play/Pause">Play</button>
+                    <button type="button" id="timeline-step-forward" class="btn btn-sm btn-outline-secondary" title="Step forward">&raquo;</button>
+                    <input type="range" id="timeline-scrubber" class="form-range flex-grow-1" min="0" max="0" value="0" step="1">
+                </div>
+                <div id="timeline-readout" class="small text-muted">No kill chain entries linked to a target yet.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h3 class="h6">Legend</h3>
+                {% for t in node_types %}
+                <div class="legend-item"><span class="legend-swatch" data-node-type="{{ t }}"></span> {{ t|node_type_label }}</div>
+                {% endfor %}
+                <hr>
+                <div class="legend-item"><span class="legend-swatch legend-swatch-active"></span> Active step</div>
+                <div class="legend-item"><span class="legend-swatch legend-swatch-visited"></span> Visited</div>
+            </div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h3 class="h6">Unmapped kill chain entries</h3>
+                <p class="text-muted small mb-2">Entries not linked to a target/victim node can't be placed on this map.</p>
+                <ul id="unmapped-entries" class="list-unstyled small mb-0"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/cytoscape/cytoscape.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/cytoscape/dagre.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/cytoscape/cytoscape-dagre.js') }}"></script>
+<script src="{{ url_for('static', filename='js/attack-map.js') }}"></script>
+{% endblock %}

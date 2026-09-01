@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Initial Setup - RedOps Vault{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h1 class="h4 mb-3">Welcome to RedOps Vault</h1>
+                <p class="text-muted">No users exist yet. Create the first administrator account to get started.</p>
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Admin username</label>
+                        <input type="text" class="form-control" id="username" name="username" value="{{ username or '' }}" minlength="3" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" minlength="8" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirm password</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" minlength="8" required>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label class="form-label">How will this vault be run?</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="infra_mode" id="infra_mode_standing" value="standing"
+                                   {{ 'checked' if infra_mode != 'engagement' else '' }}>
+                            <label class="form-check-label" for="infra_mode_standing">
+                                Continuously standing infrastructure
+                            </label>
+                            <div class="form-text">Persistent instance used across multiple engagements over time.</div>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="infra_mode" id="infra_mode_engagement" value="engagement"
+                                   {{ 'checked' if infra_mode == 'engagement' else '' }}>
+                            <label class="form-check-label" for="infra_mode_engagement">
+                                Engagement infrastructure
+                            </label>
+                            <div class="form-text">Stood up for a single engagement; the home view goes straight to it.</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="engagement_name_group">
+                        <label for="engagement_name" class="form-label">Engagement name</label>
+                        <input type="text" class="form-control" id="engagement_name" name="engagement_name" value="{{ engagement_name or '' }}">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Create Admin Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var engagementRadio = document.getElementById('infra_mode_engagement');
+    var standingRadio = document.getElementById('infra_mode_standing');
+    var group = document.getElementById('engagement_name_group');
+    var nameInput = document.getElementById('engagement_name');
+
+    function sync() {
+        var isEngagement = engagementRadio.checked;
+        group.style.display = isEngagement ? '' : 'none';
+        nameInput.required = isEngagement;
+    }
+
+    engagementRadio.addEventListener('change', sync);
+    standingRadio.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

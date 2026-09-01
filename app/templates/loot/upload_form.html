@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Upload Loot - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<h2 class="h5 mb-3">Upload Loot</h2>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('loot.upload_loot', engagement_id=engagement.id) }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="mb-3">
+                <label class="form-label">File</label>
+                <input type="file" class="form-control" name="file" required>
+                <div class="form-text">Files are encrypted at rest with AES-256-GCM before being written to disk.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Category</label>
+                <select class="form-select" name="category" required>
+                    {% for c in categories %}
+                    <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Origin</label>
+                <select class="form-select" name="associated_host" id="associated-host-select">
+                    {% for node in nodes %}
+                    <option value="{{ node.name }}">{{ node.name }} ({{ node.node_type|node_type_label }})</option>
+                    {% endfor %}
+                    <option value="__other__" selected>Other</option>
+                </select>
+                <div class="mt-2" id="associated-host-other-wrap">
+                    <input type="text" class="form-control" name="associated_host_other" id="associated-host-other-input" placeholder="Where was this found? e.g. 10.0.0.5 or web01.corp.local">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Tags (comma separated)</label>
+                <input type="text" class="form-control" name="tags">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+            <a href="{{ url_for('loot.list_loot', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+<script>
+(function () {
+    var select = document.getElementById('associated-host-select');
+    var wrap = document.getElementById('associated-host-other-wrap');
+    function sync() {
+        wrap.style.display = select.value === '__other__' ? '' : 'none';
+    }
+    select.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

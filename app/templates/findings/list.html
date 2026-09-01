@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Findings - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Findings</h2>
+    <div>
+        <a href="{{ url_for('findings.export_markdown', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">Export Markdown</a>
+        <a href="{{ url_for('findings.new_finding_form', engagement_id=engagement.id) }}" class="btn btn-primary">Add Finding</a>
+    </div>
+</div>
+
+{% if not findings %}
+<div class="card shadow-sm">
+    <div class="card-body text-center text-muted py-4">No findings recorded yet.</div>
+</div>
+{% else %}
+<div class="d-flex flex-column gap-3">
+    {% for finding in findings %}
+    <div class="card shadow-sm finding-card finding-severity-{{ finding.severity }}">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="badge finding-severity-badge finding-severity-{{ finding.severity }}">{{ finding.severity_label() }}</span>
+                    <span class="h6 mb-0 ms-2">{{ finding.title }}</span>
+                </div>
+                <div class="flex-shrink-0">
+                    <a href="{{ url_for('findings.edit_finding_form', engagement_id=engagement.id, finding_id=finding.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <form method="post" action="{{ url_for('findings.delete_finding', engagement_id=engagement.id, finding_id=finding.id) }}" data-confirm="Delete this finding?" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+
+            {% set has_correlations = finding.loot_files or finding.infra_nodes or finding.credentials or finding.iocs or finding.killchain_entries %}
+            {% if finding.details or has_correlations %}
+            <button type="button" class="btn btn-sm btn-outline-secondary mb-2" data-bs-toggle="collapse" data-bs-target="#details-{{ finding.id }}">
+                Show details
+            </button>
+            <div class="collapse" id="details-{{ finding.id }}">
+                {% if finding.details %}
+                <div class="finding-rich-text mb-2">{{ finding.details | safe }}</div>
+                {% endif %}
+                {% if finding.infra_nodes %}
+                <div class="mb-2">
+                    <div class="text-muted small fw-bold">Affected hosts</div>
+                    {% for node in finding.infra_nodes %}
+                    {% set node_endpoint = 'targets.edit_target_form' if node.role in ('target', 'victim') else 'infrastructure.edit_node_form' %}
+                    <a class="badge bg-dark text-decoration-none" href="{{ url_for(node_endpoint, engagement_id=engagement.id, node_id=node.id) }}">{{ node.name }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if finding.loot_files %}
+                <div class="mb-2">
+                    <div class="text-muted small fw-bold">Attached loot</div>
+                    {% for file in finding.loot_files %}
+                    <a class="badge bg-info text-dark text-decoration-none" href="{{ url_for('loot.file_detail', engagement_id=engagement.id, file_id=file.id) }}">{{ file.original_filename }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if finding.credentials %}
+                <div class="mb-2">
+                    <div class="text-muted small fw-bold">Related credentials</div>
+                    {% for credential in finding.credentials %}
+                    <a class="badge bg-secondary text-decoration-none" href="{{ url_for('loot.edit_credential_form', engagement_id=engagement.id, cred_id=credential.id) }}">{{ credential.display_label() }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if finding.iocs %}
+                <div class="mb-2">
+                    <div class="text-muted small fw-bold">Related IOCs</div>
+                    {% for ioc in finding.iocs %}
+                    <a class="badge bg-warning text-dark text-decoration-none" href="{{ url_for('ioc.edit_ioc_form', engagement_id=engagement.id, ioc_id=ioc.id) }}">{{ ioc.display_label() }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if finding.killchain_entries %}
+                <div class="mb-2">
+                    <div class="text-muted small fw-bold">Related kill chain entries</div>
+                    {% for entry in finding.killchain_entries %}
+                    <a class="badge bg-primary text-decoration-none" href="{{ url_for('killchain.edit_entry_form', engagement_id=engagement.id, entry_id=entry.id) }}">{{ entry.stage_label() }} &mdash; {{ entry.title }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if finding.remediation %}
+            <div class="mb-1">
+                <div class="text-muted small fw-bold">Remediation</div>
+                <div class="finding-rich-text">{{ finding.remediation | safe }}</div>
+            </div>
+            {% endif %}
+            <div class="text-muted small mt-2">Added by {{ finding.created_by.username }} on {{ finding.created_at.strftime('%Y-%m-%d') }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<button type="button" id="back-to-top" class="btn btn-primary rounded-circle back-to-top d-none" title="Back to top" aria-label="Back to top">&uarr;</button>
+<script src="{{ url_for('static', filename='js/findings-list.js') }}"></script>
+{% endblock %}

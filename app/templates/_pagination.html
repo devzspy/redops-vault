@@ -1,0 +1,23 @@
+{% macro render_pagination(pagination, endpoint, url_kwargs={}) %}
+{% if pagination.pages > 1 %}
+<nav aria-label="Pagination" class="mt-3">
+    <ul class="pagination justify-content-center mb-0">
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+            <a class="page-link" href="{{ url_for(endpoint, page=pagination.prev_num, **url_kwargs) if pagination.has_prev else '#' }}">Previous</a>
+        </li>
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+                <li class="page-item {{ 'active' if page_num == pagination.page }}">
+                    <a class="page-link" href="{{ url_for(endpoint, page=page_num, **url_kwargs) }}">{{ page_num }}</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+            {% endif %}
+        {% endfor %}
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+            <a class="page-link" href="{{ url_for(endpoint, page=pagination.next_num, **url_kwargs) if pagination.has_next else '#' }}">Next</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% endmacro %}

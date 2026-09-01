@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if entry else 'New' }} Kill Chain Entry - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<h2 class="h5 mb-3">{{ 'Edit Kill Chain Entry' if entry else 'New Kill Chain Entry' }}</h2>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('killchain.edit_entry', engagement_id=engagement.id, entry_id=entry.id) if entry else url_for('killchain.create_entry', engagement_id=engagement.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="mb-3">
+                <label class="form-label">Stage</label>
+                <select class="form-select" name="stage" required>
+                    {% for s in stages %}
+                    <option value="{{ s }}" {{ 'selected' if entry and entry.stage == s else '' }}>{{ stage_labels[s] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Title</label>
+                <input type="text" class="form-control" name="title" value="{{ entry.title or '' }}" required>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Host</label>
+                    <input type="text" class="form-control" name="host" value="{{ entry.host or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Linked infrastructure node</label>
+                    <select class="form-select" name="infra_node_id">
+                        <option value="">&mdash; none &mdash;</option>
+                        {% for node in nodes %}
+                        <option value="{{ node.id }}" {{ 'selected' if entry and entry.infra_node_id == node.id else '' }}>{{ node.name }} ({{ node.node_type|node_type_label }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Start time</label>
+                    <input type="datetime-local" class="form-control" name="occurred_at" value="{{ entry.occurred_at.strftime('%Y-%m-%dT%H:%M') if entry and entry.occurred_at else '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">End time</label>
+                    <input type="datetime-local" class="form-control" name="occurred_ended_at" value="{{ entry.occurred_ended_at.strftime('%Y-%m-%dT%H:%M') if entry and entry.occurred_ended_at else '' }}">
+                    <div class="form-text">Optional — set for activities with a duration, e.g. an nmap scan.</div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" rows="3">{{ entry.description or '' }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Linked loot files</label>
+                <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                    {% set linked_ids = entry.loot_files|map(attribute='id')|list if entry else [] %}
+                    {% for file in files %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="loot_file_ids" value="{{ file.id }}" id="lf{{ file.id }}" {{ 'checked' if file.id in linked_ids else '' }}>
+                        <label class="form-check-label" for="lf{{ file.id }}">{{ file.original_filename }}</label>
+                    </div>
+                    {% else %}
+                    <span class="text-muted">No loot files uploaded yet.</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if entry else 'Add Entry' }}</button>
+            <a href="{{ url_for('killchain.timeline', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

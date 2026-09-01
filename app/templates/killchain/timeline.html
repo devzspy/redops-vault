@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Kill Chain - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Kill Chain Timeline</h2>
+    <div>
+        <a href="{{ url_for('killchain.report_pdf', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">PDF Report</a>
+        <a href="{{ url_for('killchain.new_entry_form', engagement_id=engagement.id) }}" class="btn btn-primary">Add Entry</a>
+    </div>
+</div>
+
+{% for stage in stages %}
+<div class="card mb-3 stage-column">
+    <div class="card-header">
+        <strong>{{ stage_labels[stage] }}</strong>
+        {% if stage_descriptions.get(stage) %}
+        <div class="small text-muted mt-1">{{ stage_descriptions[stage] }}</div>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% for entry in entries_by_stage[stage] %}
+        <div class="border rounded p-2 mb-2">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <strong>{{ entry.title }}</strong>
+                    {% if entry.host %}<span class="text-muted"> — {{ entry.host }}</span>{% endif %}
+                    {% if entry.occurred_range_label() %}<div class="small text-muted">{{ entry.occurred_range_label() }}</div>{% endif %}
+                </div>
+                <div>
+                    <a href="{{ url_for('killchain.edit_entry_form', engagement_id=engagement.id, entry_id=entry.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <form method="post" action="{{ url_for('killchain.delete_entry', engagement_id=engagement.id, entry_id=entry.id) }}" class="d-inline" data-confirm="Delete this kill chain entry?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {% if entry.description %}<p class="mb-1">{{ entry.description }}</p>{% endif %}
+            {% if entry.loot_files %}
+            <div class="mb-1">
+                {% for lf in entry.loot_files %}
+                <a class="badge bg-info text-decoration-none" href="{{ url_for('loot.file_detail', engagement_id=engagement.id, file_id=lf.id) }}">{{ lf.original_filename }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if entry.findings %}
+            <div class="mb-1">
+                {% for finding in entry.findings %}
+                <a class="badge finding-severity-badge finding-severity-{{ finding.severity }} text-decoration-none" href="{{ url_for('findings.edit_finding_form', engagement_id=engagement.id, finding_id=finding.id) }}">{{ finding.title }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="mb-1">
+                {% for mapping in entry.technique_mappings %}
+                <span class="badge bg-dark">
+                    <a class="text-white text-decoration-none" href="{{ url_for('attack.technique_detail', attack_id=mapping.technique.attack_id) }}">{{ mapping.technique.attack_id }}</a>
+                </span>
+                {% endfor %}
+            </div>
+            <form method="post" action="{{ url_for('attack.map_technique_to_killchain', engagement_id=engagement.id, entry_id=entry.id) }}" class="d-flex gap-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                <input type="text" class="form-control form-control-sm w-auto" name="attack_id" list="technique-list" placeholder="Map technique (e.g. T1566)">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Map</button>
+            </form>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No entries for this stage.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+<datalist id="technique-list">
+    {% for t in techniques %}
+    <option value="{{ t.attack_id }}">{{ t.name }}</option>
+    {% endfor %}
+</datalist>
+{% endblock %}

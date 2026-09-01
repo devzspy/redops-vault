@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Network Map - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="h5 mb-0">Network Map</h2>
+        <p class="text-muted small mb-0">Attacker-owned infrastructure only &mdash; see the Attack Map for targets &amp; victims.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" id="export-map-png" class="btn btn-sm btn-outline-secondary" disabled>Export PNG</button>
+        <a href="{{ url_for('infrastructure.network_map_g6', engagement_id=engagement.id) }}" class="btn btn-sm btn-outline-primary">Try G6 preview &rarr;</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-9">
+        <div class="card shadow-sm">
+            <div id="cy" data-graph-url="{{ url_for('infrastructure.graph_json', engagement_id=engagement.id) }}" data-export-filename="network-map-{{ engagement.name }}"></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h3 class="h6">Legend</h3>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="hostname"></span> Hostname</div>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="ip_address"></span> IP address</div>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="domain"></span> Domain</div>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="region"></span> Region / realm</div>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="cloud_provider"></span> Cloud provider</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/cytoscape/cytoscape.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/cytoscape/dagre.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/cytoscape/cytoscape-dagre.js') }}"></script>
+<script src="{{ url_for('static', filename='js/network-map.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if engagement else 'New' }} Engagement - RedOps Vault{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ 'Edit Engagement' if engagement else 'New Engagement' }}</h1>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('engagements.edit_engagement', engagement_id=engagement.id) if engagement else url_for('engagements.create_engagement') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="mb-3">
+                <label class="form-label">Engagement name</label>
+                <input type="text" class="form-control" name="name" value="{{ engagement.name if engagement else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Client name</label>
+                <input type="text" class="form-control" name="client_name" value="{{ engagement.client_name if engagement else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" rows="3">{{ engagement.description if engagement else '' }}</textarea>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Start date</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ engagement.start_date if engagement else '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">End date</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ engagement.end_date if engagement else '' }}">
+                </div>
+            </div>
+            {% set kill_chain_locked = engagement and engagement.killchain_entries %}
+            <div class="mb-3">
+                <label class="form-label">Kill chain model</label>
+                <select class="form-select" name="kill_chain_model" {{ 'disabled' if kill_chain_locked else '' }}>
+                    {% for m in kill_chain_models %}
+                    <option value="{{ m }}" {{ 'selected' if (engagement.kill_chain_model if engagement else none) == m else '' }}>{{ kill_chain_model_labels[m] }}</option>
+                    {% endfor %}
+                </select>
+                {% if kill_chain_locked %}
+                <div class="form-text">Locked because this engagement already has kill chain entries.</div>
+                {% else %}
+                <div class="form-text">Determines which kill chain stages are available on this engagement's timeline.</div>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if engagement else 'Create Engagement' }}</button>
+            {% if engagement %}
+            <a href="{{ url_for('engagements.engagement_detail', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">Cancel</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}

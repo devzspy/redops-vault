@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Engagements - RedOps Vault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Engagements</h1>
+    <div class="d-flex align-items-center gap-2">
+        <a href="{{ url_for('engagements.list_engagements', show_archived=0 if show_archived else 1) }}"
+           class="btn btn-outline-secondary {{ 'active' if show_archived else '' }}">
+            {{ 'Hide archived' if show_archived else 'Show archived' }}
+        </a>
+        <a href="{{ url_for('engagements.new_engagement_form') }}" class="btn btn-primary">New Engagement</a>
+    </div>
+</div>
+
+<form id="kanban-csrf-form" style="display:none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+</form>
+
+<div class="kanban-board d-flex gap-3 pb-2">
+    {% for status in statuses %}
+    <div class="kanban-column flex-shrink-0">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h2 class="h6 mb-0">{{ status_labels[status] }}</h2>
+            <span class="badge bg-secondary">{{ engagements_by_status[status]|length }}</span>
+        </div>
+        <div class="kanban-dropzone" data-status="{{ status }}">
+            {% for engagement in engagements_by_status[status] %}
+            <div class="card mb-2 kanban-card" draggable="true" data-id="{{ engagement.id }}"
+                 data-href="{{ url_for('engagements.engagement_detail', engagement_id=engagement.id) }}">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-start gap-1">
+                        <strong>{{ engagement.name }}</strong>
+                        {% if engagement.is_archived %}<span class="badge bg-dark">Archived</span>{% endif %}
+                    </div>
+                    <div class="text-muted small">{{ engagement.client_name }}</div>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-muted small mb-0">No engagements.</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<script>
+(function () {
+    const csrfToken = document.querySelector('#kanban-csrf-form input[name=csrf_token]').value;
+
+    function updateCount(zone) {
+        const column = zone.closest('.kanban-column');
+        const badge = column.querySelector('.badge');
+        badge.textContent = zone.querySelectorAll('.kanban-card').length;
+    }
+
+    document.querySelectorAll('.kanban-card').forEach(function (card) {
+        card.addEventListener('dragstart', function (e) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', card.dataset.id);
+            card.classList.add('kanban-card-dragging');
+        });
+        card.addEventListener('dragend', function () {
+            card.classList.remove('kanban-card-dragging');
+        });
+        card.addEventListener('click', function () {
+            window.location = card.dataset.href;
+        });
+    });
+
+    document.querySelectorAll('.kanban-dropzone').forEach(function (zone) {
+        zone.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            zone.classList.add('kanban-dropzone-active');
+        });
+        zone.addEventListener('dragleave', function () {
+            zone.classList.remove('kanban-dropzone-active');
+        });
+        zone.addEventListener('drop', function (e) {
+            e.preventDefault();
+            zone.classList.remove('kanban-dropzone-active');
+
+            const engagementId = e.dataTransfer.getData('text/plain');
+            const card = document.querySelector('.kanban-card[data-id="' + engagementId + '"]');
+            if (!card) return;
+
+            const previousZone = card.closest('.kanban-dropzone');
+            const newStatus = zone.dataset.status;
+            if (previousZone === zone) return;
+
+            zone.querySelectorAll(':scope > p.text-muted').forEach(function (el) { el.remove(); });
+            zone.appendChild(card);
+            updateCount(zone);
+            updateCount(previousZone);
+            if (previousZone.children.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'text-muted small mb-0';
+                empty.textContent = 'No engagements.';
+                previousZone.appendChild(empty);
+            }
+
+            const body = new URLSearchParams();
+            body.set('status', newStatus);
+            body.set('csrf_token', csrfToken);
+            body.set('ajax', '1');
+            fetch('/engagements/' + engagementId + '/status', { method: 'POST', body: body })
+                .then(function (resp) {
+                    if (!resp.ok) throw new Error('status update failed');
+                })
+                .catch(function () {
+                    window.location.reload();
+                });
+        });
+    });
+})();
+</script>
+{% endblock %}
+

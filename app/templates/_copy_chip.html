@@ -1,0 +1,6 @@
+{% macro copy_chip(value, title='Click to copy') %}
+<button type="button" class="btn btn-sm btn-outline-secondary copy-chip" data-copy-value="{{ value }}" title="{{ title }}">
+    <span class="copy-chip-value font-monospace">{{ value }}</span>
+    <span class="copy-chip-copied-label d-none">Copied!</span>
+</button>
+{% endmacro %}

@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kill Chain Report - {{ engagement.name }}</title>
+<style>
+    /* xhtml2pdf supports CSS2.1-ish only: no flexbox/grid, plain tables/divs used throughout. */
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #222; }
+    h1 { font-size: 20pt; margin-bottom: 0; }
+    h2 { font-size: 14pt; margin-top: 24pt; border-bottom: 2px solid #333; padding-bottom: 4pt; }
+    .subtitle { color: #666; margin-top: 4pt; }
+    .meta-table { width: 100%; margin: 12pt 0 18pt 0; }
+    .meta-table td { padding: 2pt 8pt 2pt 0; vertical-align: top; }
+    table.entries { width: 100%; border-collapse: collapse; margin-bottom: 12pt; }
+    table.entries th, table.entries td {
+        border: 1px solid #999;
+        padding: 6pt 8pt;
+        text-align: left;
+        vertical-align: top;
+        font-size: 9.5pt;
+    }
+    table.entries th { background-color: #333; color: #fff; }
+    .stage-section { page-break-before: always; }
+    .stage-section.first { page-break-before: auto; }
+    .no-entries { color: #777; font-style: italic; }
+    .badge { display: inline-block; border: 1px solid #666; border-radius: 3pt; padding: 1pt 4pt; margin: 1pt; font-size: 8.5pt; }
+</style>
+</head>
+<body>
+    <h1>Kill Chain Report</h1>
+    <div class="subtitle">{{ engagement.name }} &mdash; {{ engagement.client_name }}</div>
+
+    <table class="meta-table">
+        <tr>
+            <td><strong>Status:</strong> {{ engagement.status }}</td>
+            <td><strong>Start:</strong> {{ engagement.start_date or '-' }}</td>
+            <td><strong>End:</strong> {{ engagement.end_date or '-' }}</td>
+        </tr>
+    </table>
+
+    {% for stage in stages %}
+    <div class="stage-section{{ ' first' if loop.first else '' }}">
+        <h2>{{ loop.index }}. {{ stage_labels.get(stage, stage) }}</h2>
+        {% set entries = entries_by_stage[stage] %}
+        {% if entries %}
+        <table class="entries">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Host</th>
+                    <th>Occurred</th>
+                    <th>Description</th>
+                    <th>ATT&amp;CK Techniques</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td>{{ entry.title }}</td>
+                    <td>{{ entry.host or '-' }}</td>
+                    <td>{{ entry.occurred_range_label() or '-' }}</td>
+                    <td>{{ entry.description or '-' }}</td>
+                    <td>
+                        {% for mapping in entry.technique_mappings %}
+                        <span class="badge">{{ mapping.technique.attack_id }} {{ mapping.technique.name }}</span>
+                        {% else %}
+                        -
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-entries">No activity recorded for this stage.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="stage-section">
+        <h2>Indicators of Compromise</h2>
+        {% if iocs %}
+        <table class="entries">
+            <thead>
+                <tr>
+                    <th>Host</th>
+                    <th>Location / Path</th>
+                    <th>Hash</th>
+                    <th>Dropped At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ioc in iocs %}
+                <tr>
+                    <td>{{ ioc.host or '-' }}</td>
+                    <td>{{ ioc.location or '-' }}</td>
+                    <td>{{ ioc.hash_type_label() ~ ': ' ~ ioc.hash_value if ioc.hash_value else '-' }}</td>
+                    <td>{{ ioc.dropped_at.strftime('%Y-%m-%d %H:%M') if ioc.dropped_at else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-entries">No indicators of compromise recorded.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

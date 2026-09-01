@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if edge else 'Add' }} Network Path - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<h2 class="h5 mb-3">{{ 'Edit Network Path' if edge else 'Add Network Path' }}</h2>
+{% if nodes|length < 2 %}
+<div class="alert alert-info">
+    You need at least two infrastructure nodes before you can add a path between them.
+    <a href="{{ url_for('infrastructure.new_node_form', engagement_id=engagement.id) }}">Add a node</a> first.
+</div>
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('infrastructure.edit_edge', engagement_id=engagement.id, edge_id=edge.id) if edge else url_for('infrastructure.create_edge', engagement_id=engagement.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Source node</label>
+                    <select class="form-select" name="source_node_id" required>
+                        {% for node in nodes %}
+                        <option value="{{ node.id }}" {{ 'selected' if edge and edge.source_node_id == node.id else '' }}>{{ node.name }} ({{ node.node_type|node_type_label }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Target node</label>
+                    <select class="form-select" name="target_node_id" required>
+                        {% for node in nodes %}
+                        <option value="{{ node.id }}" {{ 'selected' if edge and edge.target_node_id == node.id else '' }}>{{ node.name }} ({{ node.node_type|node_type_label }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Label</label>
+                <input type="text" class="form-control" name="label" value="{{ edge.label or '' }}" placeholder="e.g. HTTPS/443, redirects to, SMB">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" name="notes" rows="3">{{ edge.notes or '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if edge else 'Add Path' }}</button>
+            <a href="{{ url_for('infrastructure.list_infrastructure', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

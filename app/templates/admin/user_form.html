@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Manage' if user else 'New' }} User - RedOps Vault{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ 'Manage ' + user.username if user else 'New User' }}</h1>
+
+{% if user %}
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="mb-3">
+                <label class="form-label">Role</label>
+                <select class="form-select" name="role">
+                    {% for r in roles %}
+                    <option value="{{ r }}" {{ 'selected' if user.role == r else '' }}>{{ r }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-check mb-3">
+                <input type="checkbox" class="form-check-input" name="is_active" id="is_active" {{ 'checked' if user.is_active else '' }}>
+                <label class="form-check-label" for="is_active">Active</label>
+            </div>
+            {% if user.role == 'blueteam' %}
+            <div class="mb-3">
+                <label class="form-label">Assigned Engagements</label>
+                <div class="border rounded p-2" style="max-height: 260px; overflow-y: auto;">
+                    {% for engagement in all_engagements %}
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="engagement_ids" value="{{ engagement.id }}" id="eng-{{ engagement.id }}" {{ 'checked' if engagement.id in assigned_engagement_ids else '' }}>
+                        <label class="form-check-label" for="eng-{{ engagement.id }}">{{ engagement.name }} <span class="text-muted small">({{ engagement.client_name }})</span></label>
+                    </div>
+                    {% else %}
+                    <div class="text-muted small">No engagements exist yet.</div>
+                    {% endfor %}
+                </div>
+                <div class="form-text">BlueTeam members can only view engagements they're assigned to.</div>
+            </div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{{ url_for('admin.list_users') }}" class="btn btn-outline-secondary">Back</a>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h2 class="h6">Reset Password</h2>
+        <form method="post" action="{{ url_for('admin.reset_password', user_id=user.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="mb-3">
+                <label class="form-label">New password (leave blank to auto-generate)</label>
+                <input type="text" class="form-control" name="password" minlength="8">
+            </div>
+            <button type="submit" class="btn btn-outline-primary">Reset Password</button>
+        </form>
+    </div>
+</div>
+
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('admin.create_user') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input type="text" class="form-control" name="username" minlength="3" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-control" name="password" minlength="8" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Role</label>
+                <select class="form-select" name="role">
+                    {% for r in roles %}
+                    <option value="{{ r }}">{{ r }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Create User</button>
+            <a href="{{ url_for('admin.list_users') }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

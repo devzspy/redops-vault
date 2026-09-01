@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}MITRE ATT&CK - RedOps Vault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-0">ATT&amp;CK Matrix for Enterprise</h1>
+        <p class="text-muted small mb-0">
+            <span class="attack-legend-swatch"></span> Orange cells have been mapped to at least one engagement.
+            Click a technique's name to view its detail page, or the <span class="attack-legend-icon">&#9612;&#9612;</span> icon to see which engagements used it.
+        </p>
+        <p class="text-muted small mb-0">
+            <kbd>&larr;</kbd> <kbd>&rarr;</kbd> arrow keys scroll the matrix.
+        </p>
+    </div>
+    {% if logged_in_user and logged_in_user.is_admin() %}
+    <form method="post" action="{{ url_for('attack.refresh') }}" data-confirm="Fetch the latest ATT&CK data from MITRE now?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+        <button type="submit" class="btn btn-outline-primary">Refresh from MITRE</button>
+    </form>
+    {% endif %}
+</div>
+
+{% if not tactics %}
+<div class="alert alert-info">
+    No ATT&amp;CK data loaded yet. {% if logged_in_user and logged_in_user.is_admin() %}Click "Refresh from MITRE" above to fetch the current Enterprise matrix.{% else %}Ask an admin to refresh the ATT&amp;CK data.{% endif %}
+</div>
+{% else %}
+<div class="attack-matrix">
+    {% for tactic in tactics %}
+    {% set top_level = tactic.techniques | rejectattr('is_subtechnique') | list %}
+    <div class="attack-column">
+        <div class="attack-column-header">
+            <div class="attack-column-title">{{ tactic.name }}</div>
+            <div class="attack-column-count">{{ top_level | length }} technique{{ 's' if top_level | length != 1 else '' }}</div>
+        </div>
+        <div class="attack-column-body">
+            {% for technique in top_level %}
+            {% set sub_count = technique.sub_techniques | length %}
+            {% set show_expand = sub_count > 0 or technique.matrix_is_used %}
+            <div class="attack-cell{{ ' attack-cell-used' if technique.matrix_is_used else '' }}">
+                <a class="attack-cell-link" href="{{ url_for('attack.technique_detail', attack_id=technique.attack_id) }}">
+                    {{ technique.name }}{% if sub_count %} <span class="attack-cell-subcount">({{ sub_count }})</span>{% endif %}
+                </a>
+                {% if show_expand %}
+                <button type="button" class="attack-cell-expand" tabindex="0"
+                        data-popover-target="popover-{{ technique.attack_id }}"
+                        data-popover-title="{{ technique.attack_id }} &mdash; {{ technique.name }}">
+                    <span aria-hidden="true">&#9612;&#9612;</span>
+                    <span class="visually-hidden">Show engagements that used this technique</span>
+                </button>
+                <div id="popover-{{ technique.attack_id }}" class="d-none">
+                    {% if technique.matrix_usage %}
+                    <ul class="list-unstyled mb-0 small">
+                        {% for eid, info in technique.matrix_usage %}
+                        <li class="mb-1">
+                            <a href="{{ url_for('engagements.engagement_detail', engagement_id=eid) }}">{{ info.name }}</a>
+                            {% if info.direct %}<span class="badge bg-secondary">{{ technique.attack_id }}</span>{% endif %}
+                            {% for sub in info.via_subs %}<span class="badge bg-secondary">{{ sub.attack_id }}</span>{% endfor %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted small mb-0">Not used on any engagement yet.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/attack-matrix.js') }}"></script>
+{% endblock %}

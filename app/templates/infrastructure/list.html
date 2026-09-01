@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Infrastructure - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Attacker Infrastructure</h2>
+    <a href="{{ url_for('infrastructure.new_node_form', engagement_id=engagement.id) }}" class="btn btn-primary">Add Node</a>
+</div>
+<div class="card shadow-sm mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Provider</th>
+                    <th>Region</th>
+                    <th>Services</th>
+                    <th>Added by</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for node in nodes %}
+                <tr>
+                    <td>{{ node.name }}</td>
+                    <td><span class="badge bg-secondary">{{ node.node_type|node_type_label }}</span></td>
+                    <td>{% if node.role %}<span class="badge bg-dark">{{ node.role }}</span>{% else %}-{% endif %}</td>
+                    <td>
+                        {% if node.status %}
+                        {% set status_color = 'success' if node.status == 'healthy' else ('warning' if node.status == 'isolated' else 'danger') %}
+                        <span class="badge bg-{{ status_color }}">{{ node.status.capitalize() }}</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>{{ node.provider or '-' }}</td>
+                    <td>{{ node.region or '-' }}</td>
+                    <td>
+                        {% for service in node.services %}
+                        <span class="badge bg-info text-dark">{{ service.display() }}</span>
+                        {% else %}
+                        -
+                        {% endfor %}
+                    </td>
+                    <td>{{ node.added_by.username }}</td>
+                    <td class="text-end">
+                        <a href="{{ url_for('infrastructure.edit_node_form', engagement_id=engagement.id, node_id=node.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <form method="post" action="{{ url_for('infrastructure.delete_node', engagement_id=engagement.id, node_id=node.id) }}" data-confirm="Delete this infrastructure node?" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No infrastructure recorded yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Network Pathing</h2>
+    <a href="{{ url_for('infrastructure.new_edge_form', engagement_id=engagement.id) }}" class="btn btn-primary">Add Path</a>
+</div>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Source</th>
+                    <th>Target</th>
+                    <th>Label</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for edge in edges %}
+                <tr>
+                    <td>{{ edge.source_node.name }}</td>
+                    <td>{{ edge.target_node.name }}</td>
+                    <td>{{ edge.label or '-' }}</td>
+                    <td class="text-end">
+                        <a href="{{ url_for('infrastructure.edit_edge_form', engagement_id=engagement.id, edge_id=edge.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <form method="post" action="{{ url_for('infrastructure.delete_edge', engagement_id=engagement.id, edge_id=edge.id) }}" data-confirm="Delete this network path?" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No pathing recorded yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

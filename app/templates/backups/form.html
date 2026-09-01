@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Manage' if destination else 'New' }} Backup Destination - RedOps Vault{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ 'Manage ' + destination.name if destination else 'New Backup Destination' }}</h1>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('backups.edit_backup', backup_id=destination.id) if destination else url_for('backups.create_backup') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+
+            <div class="mb-3">
+                <label class="form-label">Name</label>
+                <input type="text" class="form-control" name="name" value="{{ destination.name if destination else '' }}" required autofocus>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Provider</label>
+                    <select class="form-select" name="provider">
+                        {% for p in providers %}
+                        <option value="{{ p }}" {{ 'selected' if destination and destination.provider == p else '' }}>{{ p | backup_provider_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Storage Type</label>
+                    <select class="form-select" name="storage_type">
+                        {% for t in storage_types %}
+                        <option value="{{ t }}" {{ 'selected' if destination and destination.storage_type == t else '' }}>{{ t | backup_storage_type_label }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Object/blob storage (S3, Azure Blob, GCS, OCI buckets), a cloud-native database (RDS, Cloud SQL, Cosmos DB, etc.), or a self-hosted filesystem/SFTP target.</div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Frequency</label>
+                    <select class="form-select" name="frequency">
+                        {% for f in frequencies %}
+                        <option value="{{ f }}" {{ 'selected' if destination and destination.frequency == f else '' }}>{{ f | backup_frequency_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Scope</label>
+                    <select class="form-select" name="scope" id="scope-select">
+                        {% for s in scopes %}
+                        <option value="{{ s }}" {{ 'selected' if destination and destination.scope == s else '' }}>{{ s | backup_scope_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3" id="engagement-wrap">
+                    <label class="form-label">Engagement</label>
+                    <select class="form-select" name="engagement_id">
+                        <option value="">-- Select an engagement --</option>
+                        {% for e in engagements %}
+                        <option value="{{ e.id }}" {{ 'selected' if destination and destination.engagement_id == e.id else '' }}>{{ e.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <hr>
+            <h2 class="h6">Destination Details</h2>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Bucket / Container / Instance</label>
+                    <input type="text" class="form-control" name="bucket_or_resource" value="{{ destination.bucket_or_resource if destination else '' }}" placeholder="e.g. redops-vault-backups or rds-instance-id">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Region</label>
+                    <input type="text" class="form-control" name="region" value="{{ destination.region if destination else '' }}" placeholder="e.g. us-east-1">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Account / Subscription / Project / Tenancy ID</label>
+                    <input type="text" class="form-control" name="account_identifier" value="{{ destination.account_identifier if destination else '' }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Endpoint URL</label>
+                    <input type="text" class="form-control" name="endpoint_url" value="{{ destination.endpoint_url if destination else '' }}" placeholder="For self-hosted or S3-compatible endpoints">
+                </div>
+            </div>
+
+            <hr>
+            <h2 class="h6">Credentials</h2>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Access Key ID / Username</label>
+                    <input type="text" class="form-control" name="access_key_id" value="{{ destination.access_key_id if destination else '' }}" autocomplete="off">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Secret / Connection Key{{ ' (leave blank to keep existing)' if destination else '' }}</label>
+                    <textarea class="form-control" name="secret" rows="2" autocomplete="off" spellcheck="false"></textarea>
+                    <div class="form-text">Stored encrypted at rest with AES-256-GCM. For GCP, paste the full service account JSON key here.</div>
+                </div>
+            </div>
+
+            <div class="table-responsive mb-3">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Provider</th>
+                            <th>Access Key ID / Username</th>
+                            <th>Secret</th>
+                            <th>Bucket / Container / Instance</th>
+                            <th>Endpoint URL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>AWS S3</td><td>Access key ID</td><td>Secret access key</td><td>Bucket (optionally bucket/prefix)</td><td>Leave blank, or a custom S3-compatible endpoint</td></tr>
+                        <tr><td>OCI (S3-compatible)</td><td>Customer secret key ID</td><td>Customer secret key</td><td>Bucket name</td><td><code>https://&lt;namespace&gt;.compat.objectstorage.&lt;region&gt;.oraclecloud.com</code> (required)</td></tr>
+                        <tr><td>Azure Blob</td><td>Storage account name</td><td>Storage account key</td><td>Container (optionally container/prefix)</td><td>Optional; defaults to <code>https://&lt;account&gt;.blob.core.windows.net</code></td></tr>
+                        <tr><td>GCP Cloud Storage</td><td>Leave blank</td><td>Full service account JSON key</td><td>Bucket name</td><td>Leave blank</td></tr>
+                        <tr><td>Self-hosted, Object/Blob Storage</td><td>Access key</td><td>Secret key</td><td>Bucket name</td><td>S3-compatible endpoint (e.g. MinIO) — required</td></tr>
+                        <tr><td>Self-hosted, Filesystem/SFTP</td><td>SFTP username</td><td>SFTP password</td><td>Remote directory path</td><td>SFTP host, optionally <code>host:port</code> — required</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Retention (days)</label>
+                    <input type="number" min="0" class="form-control" name="retention_days" value="{{ destination.retention_days if destination and destination.retention_days is not none else '' }}">
+                </div>
+                <div class="col-md-4 mb-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="is_active" id="is_active" {{ 'checked' if (not destination) or destination.is_active else '' }}>
+                        <label class="form-check-label" for="is_active">Active</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" name="notes" rows="3">{{ destination.notes if destination else '' }}</textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if destination else 'Add Backup Destination' }}</button>
+            <a href="{{ url_for('backups.list_backups') }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    var select = document.getElementById('scope-select');
+    var wrap = document.getElementById('engagement-wrap');
+    function sync() {
+        wrap.style.display = select.value === 'engagement' ? '' : 'none';
+    }
+    select.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

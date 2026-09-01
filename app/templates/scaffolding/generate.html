@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Scaffolding - {{ engagement.name }} - RedOps Vault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-0">Agent Scaffolding &mdash; {{ engagement.name }}</h1>
+        <span class="text-muted">{{ engagement.client_name }}</span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('scaffolding.select') }}" class="btn btn-outline-secondary">Change engagement</a>
+        <button type="button" id="scaffolding-copy" class="btn btn-primary">Copy scaffolding</button>
+    </div>
+</div>
+
+<p class="text-muted">
+    Paste the whole document below into this engagement's AI agent &mdash; its system
+    prompt, project instructions (<code>CLAUDE.md</code> / <code>AGENTS.md</code>), or
+    first message. It carries the current threat model, checklist state, and operating
+    instructions so the agent can keep working the engagement through the MCP server
+    without needing a prompt for every step. Re-generate any time state changes.
+</p>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <textarea id="scaffolding-text" class="form-control font-monospace" rows="30" spellcheck="false" readonly>{{ scaffolding_text }}</textarea>
+    </div>
+</div>
+
+<script>
+(function () {
+    var button = document.getElementById('scaffolding-copy');
+    var textarea = document.getElementById('scaffolding-text');
+    if (!button || !textarea) return;
+
+    button.addEventListener('click', function () {
+        if (!navigator.clipboard) {
+            textarea.focus();
+            textarea.select();
+            return;
+        }
+        navigator.clipboard.writeText(textarea.value).then(function () {
+            var original = button.textContent;
+            button.textContent = 'Copied!';
+            button.classList.add('btn-success');
+            button.classList.remove('btn-primary');
+            setTimeout(function () {
+                button.textContent = original;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-primary');
+            }, 1200);
+        }).catch(function () {
+            textarea.focus();
+            textarea.select();
+        });
+    });
+})();
+</script>
+{% endblock %}

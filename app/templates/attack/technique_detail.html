@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ technique.attack_id }} - RedOps Vault{% endblock %}
+{% block content %}
+<a href="{{ url_for('attack.browse') }}">&larr; Back to matrix</a>
+<h1 class="h3 mt-2">{{ technique.attack_id }} - {{ technique.name }}</h1>
+{% if technique.is_subtechnique and technique.parent_technique %}
+<p class="text-muted">Sub-technique of <a href="{{ url_for('attack.technique_detail', attack_id=technique.parent_technique.attack_id) }}">{{ technique.parent_technique.attack_id }} - {{ technique.parent_technique.name }}</a></p>
+{% endif %}
+<div class="row">
+    <div class="col-md-4">
+        <strong>Tactics:</strong>
+        {% for tactic in technique.tactics %}
+        <span class="badge bg-secondary">{{ tactic.name }}</span>
+        {% endfor %}
+    </div>
+    <div class="col-md-4">
+        {% if technique.url %}<a href="{{ technique.url }}" target="_blank" rel="noopener">View on attack.mitre.org</a>{% endif %}
+    </div>
+</div>
+<p class="mt-3">{{ technique.description }}</p>
+
+{% if technique.sub_techniques %}
+<h2 class="h6 mt-4">Sub-techniques</h2>
+<ul>
+    {% for sub in technique.sub_techniques %}
+    <li><a href="{{ url_for('attack.technique_detail', attack_id=sub.attack_id) }}">{{ sub.attack_id }} - {{ sub.name }}</a></li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<h2 class="h6 mt-4">Used across engagements</h2>
+<ul class="list-group">
+    {% for mapping in mappings %}
+    <li class="list-group-item">
+        <strong>{{ mapping.engagement.name }}</strong> —
+        {% if mapping.loot_file %}
+        <a href="{{ url_for('loot.file_detail', engagement_id=mapping.engagement_id, file_id=mapping.loot_file_id) }}">loot: {{ mapping.loot_file.original_filename }}</a>
+        {% elif mapping.killchain_entry %}
+        <a href="{{ url_for('killchain.timeline', engagement_id=mapping.engagement_id) }}">kill chain: {{ mapping.killchain_entry.title }}</a>
+        {% endif %}
+        {% if mapping.notes %}<div class="text-muted small">{{ mapping.notes }}</div>{% endif %}
+    </li>
+    {% else %}
+    <li class="list-group-item text-muted">Not yet mapped to any engagement activity.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Network Map (G6 preview) - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="h5 mb-0">Network Map <span class="badge bg-primary">G6 preview</span></h2>
+        <p class="text-muted small mb-0">Experimental renderer for comparison — the Cytoscape view remains the default.</p>
+    </div>
+    <a href="{{ url_for('infrastructure.network_map', engagement_id=engagement.id) }}" class="btn btn-sm btn-outline-secondary">&larr; Back to classic view</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-9">
+        <div class="card shadow-sm mb-3 g6-canvas-card">
+            <div id="g6-canvas" data-graph-url="{{ url_for('infrastructure.graph_json', engagement_id=engagement.id) }}"></div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <button type="button" id="timeline-step-back" class="btn btn-sm btn-outline-secondary" title="Step back">&laquo;</button>
+                    <button type="button" id="timeline-play" class="btn btn-sm btn-primary" title="Play/Pause">Play</button>
+                    <button type="button" id="timeline-step-forward" class="btn btn-sm btn-outline-secondary" title="Step forward">&raquo;</button>
+                    <input type="range" id="timeline-scrubber" class="form-range flex-grow-1" min="0" max="0" value="0" step="1">
+                </div>
+                <div id="timeline-readout" class="small text-muted">No kill chain entries linked to infrastructure yet.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h3 class="h6">Legend</h3>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="hostname"></span> Hostname</div>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="ip_address"></span> IP address</div>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="domain"></span> Domain</div>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="region"></span> Region / realm</div>
+                <div class="legend-item"><span class="legend-swatch" data-node-type="cloud_provider"></span> Cloud provider</div>
+                <hr>
+                <div class="legend-item"><span class="legend-swatch" style="background-color:#00d4ff; box-shadow:0 0 0 3px rgba(0,212,255,.3);"></span> Active step (pulsing)</div>
+                <div class="legend-item"><span class="legend-swatch legend-swatch-visited"></span> Visited</div>
+            </div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h3 class="h6">Unmapped kill chain entries</h3>
+                <p class="text-muted small mb-2">Entries not linked to an infrastructure node can't be placed on the graph.</p>
+                <ul id="unmapped-entries" class="list-unstyled small mb-0"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/g6/g6.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/network-map-g6.js') }}"></script>
+{% endblock %}

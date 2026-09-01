@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Backups - RedOps Vault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Backups</h1>
+    <a href="{{ url_for('backups.new_backup_form') }}" class="btn btn-primary">New Backup Destination</a>
+</div>
+<p class="text-muted">Active destinations with an Hourly/Daily/Weekly/Monthly frequency run automatically in the background. Manual-frequency destinations only run when you click Run Now.</p>
+
+{% if not destinations %}
+<div class="card shadow-sm">
+    <div class="card-body text-center text-muted py-4">No backup destinations configured yet.</div>
+</div>
+{% endif %}
+
+<div class="d-flex flex-column gap-2">
+{% for destination in destinations %}
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                <div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <h2 class="h6 mb-0">{{ destination.name }}</h2>
+                        <span class="badge bg-{{ 'success' if destination.is_active else 'secondary' }}">
+                            {{ 'Active' if destination.is_active else 'Paused' }}
+                        </span>
+                    </div>
+                    <div class="text-muted small">
+                        {{ destination.provider | backup_provider_label }} &middot;
+                        {{ destination.storage_type | backup_storage_type_label }} &middot;
+                        {{ destination.frequency | backup_frequency_label }}
+                    </div>
+                </div>
+                <div class="text-sm-end">
+                    {% if destination.last_backup_at %}
+                    <div class="small text-muted">Last run {{ destination.last_backup_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    <span class="badge bg-{{ 'success' if destination.last_backup_status == 'success' else ('danger' if destination.last_backup_status == 'failed' else 'secondary') }}" title="{{ destination.last_backup_message or '' }}">
+                        {{ destination.last_backup_status_label() }}
+                    </span>
+                    {% else %}
+                    <span class="text-muted small">Never run</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="row gy-2 small">
+                <div class="col-sm-4">
+                    <div class="text-muted">Scope</div>
+                    <div>
+                        {{ destination.scope | backup_scope_label }}
+                        {% if destination.scope == 'engagement' and destination.engagement %}
+                        <div class="text-muted">{{ destination.engagement.name }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-sm-8">
+                    <div class="text-muted">Target</div>
+                    <div class="text-break">{{ destination.destination_summary() }}</div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a href="{{ url_for('backups.edit_backup_form', backup_id=destination.id) }}" class="btn btn-sm btn-outline-secondary">Manage</a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#backup-logs-{{ destination.id }}">Show Logs</button>
+                <form method="post" action="{{ url_for('backups.run_backup_now', backup_id=destination.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Run Now</button>
+                </form>
+                <form method="post" action="{{ url_for('backups.record_backup_run', backup_id=destination.id) }}" title="Manually record a run performed outside the app (e.g. provider 'Other')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                    <input type="hidden" name="outcome" value="success">
+                    <button type="submit" class="btn btn-sm btn-outline-success">Log Success</button>
+                </form>
+                <form method="post" action="{{ url_for('backups.record_backup_run', backup_id=destination.id) }}" title="Manually record a run performed outside the app">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                    <input type="hidden" name="outcome" value="failed">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Log Failure</button>
+                </form>
+                <form method="post" action="{{ url_for('backups.delete_backup', backup_id=destination.id) }}" data-confirm="Delete backup destination '{{ destination.name }}'?" class="ms-sm-auto">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="backup-logs-{{ destination.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5">Backup Logs &mdash; {{ destination.name }}</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {% set logs = destination.logs[:20] %}
+                    {% if logs %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Ran At</th>
+                                    <th>Status</th>
+                                    <th>Trigger</th>
+                                    <th>By</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr>
+                                    <td class="text-nowrap">{{ log.ran_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if log.status == 'success' else ('danger' if log.status == 'failed' else 'secondary') }}">
+                                            {{ log.status_label() }}
+                                        </span>
+                                    </td>
+                                    <td class="text-nowrap">{{ log.triggered_by_label() }}</td>
+                                    <td class="text-nowrap">{{ log.triggered_by_user.username if log.triggered_by_user else '-' }}</td>
+                                    <td class="text-break">{{ log.message or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if destination.logs|length > 20 %}
+                    <div class="text-muted small mt-2">Showing the 20 most recent runs ({{ destination.logs|length }} total).</div>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-muted mb-0">No runs recorded yet.</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+</div>
+{% endblock %}

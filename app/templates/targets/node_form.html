@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if node else 'Add' }} Target / Victim - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<h2 class="h5 mb-3">{{ 'Edit Target / Victim' if node else 'Add Target / Victim' }}</h2>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('targets.edit_target', engagement_id=engagement.id, node_id=node.id) if node else url_for('targets.create_target', engagement_id=engagement.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" name="node_type" required>
+                        {% for t in node_types %}
+                        <option value="{{ t }}" {{ 'selected' if node and node.node_type == t else '' }}>{{ t|node_type_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" name="name" value="{{ node.name or '' }}" placeholder="e.g. dc01.corp.local, 10.10.14.5" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Role</label>
+                    <select class="form-select" name="role" required>
+                        {% for r in roles %}
+                        <option value="{{ r }}" {{ 'selected' if (node.role if node else default_role) == r else '' }}>{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Status</label>
+                    {% set current_status = node.status if node else 'healthy' %}
+                    <select class="form-select" name="status">
+                        <option value="" {{ 'selected' if not current_status else '' }}>&mdash; none &mdash;</option>
+                        {% for s in statuses %}
+                        <option value="{{ s }}" {{ 'selected' if current_status == s else '' }}>{{ s.capitalize() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Cloud provider</label>
+                    <input type="text" class="form-control" name="provider" value="{{ node.provider or '' }}" placeholder="e.g. AWS, DigitalOcean">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Region / realm</label>
+                    <input type="text" class="form-control" name="region" value="{{ node.region or '' }}" placeholder="e.g. us-east-1">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" name="notes" rows="3">{{ node.notes or '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if node else 'Add Target / Victim' }}</button>
+            <a href="{{ url_for('targets.list_targets', engagement_id=engagement.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+{% if node %}
+<div class="card shadow-sm mt-3">
+    <div class="card-body">
+        <h2 class="h6">Services</h2>
+        <ul class="list-group mb-3">
+            {% for service in node.services %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ service.display() }}
+                <form method="post" action="{{ url_for('infrastructure.delete_service', engagement_id=engagement.id, node_id=node.id, service_id=service.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                </form>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted">No services recorded yet.</li>
+            {% endfor %}
+        </ul>
+        <form method="post" action="{{ url_for('infrastructure.create_service', engagement_id=engagement.id, node_id=node.id) }}" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+            <div class="col-auto">
+                <input type="text" class="form-control form-control-sm" name="name" placeholder="Service, e.g. SMB" required>
+            </div>
+            <div class="col-auto">
+                <input type="number" class="form-control form-control-sm" name="port" placeholder="Port, e.g. 445" min="1" max="65535">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Add Service</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm mt-3">
+    <div class="card-body">
+        <h2 class="h6">Linked Findings</h2>
+        {% if node.findings %}
+        <ul class="list-group">
+            {% for finding in node.findings %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('findings.edit_finding_form', engagement_id=engagement.id, finding_id=finding.id) }}">{{ finding.title }}</a>
+                <span class="badge finding-severity-badge finding-severity-{{ finding.severity }}">{{ finding.severity_label() }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">No findings linked to this host yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

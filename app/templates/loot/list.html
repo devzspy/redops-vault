@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_pagination.html" import render_pagination %}
+{% block title %}Loot - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Loot</h2>
+    <a href="{{ url_for('loot.upload_form', engagement_id=engagement.id) }}" class="btn btn-primary">Upload File</a>
+</div>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Category</th>
+                    <th>Origin</th>
+                    <th>Size</th>
+                    <th>Uploaded by</th>
+                    <th>Uploaded</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for file in files %}
+                <tr onclick="window.location='{{ url_for('loot.file_detail', engagement_id=engagement.id, file_id=file.id) }}'" style="cursor:pointer;">
+                    <td>{{ file.original_filename }}</td>
+                    <td><span class="badge bg-secondary">{{ file.category }}</span></td>
+                    <td>{{ file.associated_host or '-' }}</td>
+                    <td>{{ (file.file_size_bytes / 1024) | round(1) }} KB</td>
+                    <td>{{ file.uploaded_by.username }}</td>
+                    <td>{{ file.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No loot uploaded yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{ render_pagination(pagination, 'loot.list_loot', {'engagement_id': engagement.id}) }}
+{% endblock %}

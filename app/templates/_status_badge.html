@@ -1,0 +1,5 @@
+{% macro status_badge(engagement, label=None) %}
+{% set color = 'success' if engagement.status == 'active' else ('warning' if engagement.status == 'planning' else ('info' if engagement.status == 'completed' else 'secondary')) %}
+<span class="badge bg-{{ color }}">{{ label or engagement.status }}</span>
+{% if engagement.is_archived %}<span class="badge bg-dark">Archived</span>{% endif %}
+{% endmacro %}
