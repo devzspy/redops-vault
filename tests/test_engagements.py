@@ -21,6 +21,27 @@ def _toggle_archive(client, engagement_id):
     return client.post(f"/engagements/{engagement_id}/archive", data={"csrf_token": csrf})
 
 
+def test_new_engagement_form_preselects_app_setting_default_kill_chain_model(client):
+    """A standing-infra vault set up with a Unified Kill Chain default
+    should pre-select UKC (not LMCKC) on the new-engagement form."""
+    client.post(
+        "/setup",
+        data={
+            "username": "admin",
+            "password": "adminpassword123",
+            "confirm_password": "adminpassword123",
+            "infra_mode": "standing",
+            "default_kill_chain_model": "ukc",
+        },
+    )
+    client.post("/login", data={"username": "admin", "password": "adminpassword123"})
+
+    resp = client.get("/engagements/new")
+    assert resp.status_code == 200
+    assert b'value="ukc" selected' in resp.data
+    assert b'value="lmckc" selected' not in resp.data
+
+
 def test_create_and_view_engagement(admin_client):
     engagement_id = _create_engagement(admin_client)
     resp = admin_client.get(f"/engagements/{engagement_id}")

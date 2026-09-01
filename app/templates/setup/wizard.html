@@ -43,6 +43,16 @@
                         </div>
                     </div>
 
+                    <div class="mb-3" id="default_kill_chain_model_group">
+                        <label for="default_kill_chain_model" class="form-label">Kill chain model</label>
+                        <select class="form-select" id="default_kill_chain_model" name="default_kill_chain_model">
+                            {% for m in kill_chain_models %}
+                            <option value="{{ m }}" {{ 'selected' if default_kill_chain_model == m else '' }}>{{ kill_chain_model_labels[m] }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text" id="default_kill_chain_model_help">Used as the default when engagements are created later; each engagement can still override it.</div>
+                    </div>
+
                     <div class="mb-3" id="engagement_name_group">
                         <label for="engagement_name" class="form-label">Engagement name</label>
                         <input type="text" class="form-control" id="engagement_name" name="engagement_name" value="{{ engagement_name or '' }}">
@@ -60,11 +70,15 @@
     var standingRadio = document.getElementById('infra_mode_standing');
     var group = document.getElementById('engagement_name_group');
     var nameInput = document.getElementById('engagement_name');
+    var killChainHelp = document.getElementById('default_kill_chain_model_help');
+    var killChainHelpEngagement = "Set on that engagement now -- once kill chain activity is logged, it can't be changed without tearing down and starting over.";
+    var killChainHelpStanding = "Used as the default when engagements are created later; each engagement can still override it.";
 
     function sync() {
         var isEngagement = engagementRadio.checked;
         group.style.display = isEngagement ? '' : 'none';
         nameInput.required = isEngagement;
+        killChainHelp.textContent = isEngagement ? killChainHelpEngagement : killChainHelpStanding;
     }
 
     engagementRadio.addEventListener('change', sync);

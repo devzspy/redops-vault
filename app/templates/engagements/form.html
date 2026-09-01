@@ -33,7 +33,7 @@
                 <label class="form-label">Kill chain model</label>
                 <select class="form-select" name="kill_chain_model" {{ 'disabled' if kill_chain_locked else '' }}>
                     {% for m in kill_chain_models %}
-                    <option value="{{ m }}" {{ 'selected' if (engagement.kill_chain_model if engagement else none) == m else '' }}>{{ kill_chain_model_labels[m] }}</option>
+                    <option value="{{ m }}" {{ 'selected' if (engagement.kill_chain_model if engagement else default_kill_chain_model) == m else '' }}>{{ kill_chain_model_labels[m] }}</option>
                     {% endfor %}
                 </select>
                 {% if kill_chain_locked %}

@@ -67,6 +67,7 @@ def new_engagement_form():
         statuses=STATUSES,
         kill_chain_models=KILL_CHAIN_MODELS,
         kill_chain_model_labels=KILL_CHAIN_MODEL_LABELS,
+        default_kill_chain_model=AppSetting.get().default_kill_chain_model,
     )
 
 
