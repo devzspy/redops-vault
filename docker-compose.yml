@@ -16,5 +16,39 @@ services:
       timeout: 5s
       retries: 10
 
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-redops}:${POSTGRES_PASSWORD:-redops}@postgres:5432/${POSTGRES_DB:-redops_vault}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      JWT_COOKIE_SECURE: ${JWT_COOKIE_SECURE:-false}
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    volumes:
+      # This contains the encryption key and must be backed up with Postgres.
+      - app_instance:/app/instance
+    read_only: true
+    tmpfs:
+      - /tmp:uid=10001,gid=10001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
 volumes:
   postgres_data:
+  app_instance:

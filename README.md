@@ -108,32 +108,34 @@ Bootstrap 5.
   terminal CLI (`redops.py`), and an MCP server for AI agent access. See
   [Operator CLI](#operator-cli) and [MCP server](#mcp-server-ai-agent-access).
 
-## Setup
+## Setup with Docker Compose
 
-Requires Python 3.11+ and Docker (for Postgres).
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env
-docker compose up -d
-```
-
-Edit `.env` and set real values for `SECRET_KEY` and `JWT_SECRET_KEY`
-(`python -c "import secrets; print(secrets.token_hex(32))"` generates one).
-Set `JWT_COOKIE_SECURE=true` when serving over HTTPS in production.
+Docker Compose builds the app image and runs the app and Postgres together.
 
 ```bash
-python app.py
+cp .env.example .env
+openssl rand -hex 32
+docker compose up --build -d
 ```
+
+Before starting Compose, put independently generated values from the command
+above into `SECRET_KEY` and `JWT_SECRET_KEY` in `.env`. Also change the
+Postgres password for any non-local deployment. Set `JWT_COOKIE_SECURE=true`
+when serving over HTTPS in production.
 
 Migrations run automatically on startup. Visit `http://localhost:5000` and
-create the first admin account via the setup wizard.
+create the first admin account via the setup wizard. The app runs under a
+dedicated non-root user, and the `postgres_data` and `app_instance` volumes
+persist database data and the encryption key respectively.
 
 The app generates `instance/encryption.key` on first boot, used to encrypt
-loot and credential fields. Back it up alongside Postgres — losing it makes
-existing loot/credentials unrecoverable.
+loot and credential fields. Back up the `app_instance` volume alongside
+Postgres — losing it makes existing loot/credentials unrecoverable.
+
+To run the app directly on the host for development, install Python 3.11+,
+install `requirements.txt`, start only Postgres with
+`docker compose up -d postgres`, and run `python app.py`. The `DATABASE_URL`
+in `.env.example` points at that host-exposed Postgres port.
 
 Migrating from an old SQLite-based install? See
 `scripts/migrate_sqlite_to_postgres.py`.
