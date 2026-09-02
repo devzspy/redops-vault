@@ -13,7 +13,7 @@ from app.models.infrastructure import (
     InfrastructureEdge,
     InfrastructureNode,
 )
-from app.services import activity_service
+from app.services import activity_service, target_detail_service
 
 
 def _target_nodes(engagement_id):
@@ -40,6 +40,20 @@ def list_targets(engagement_id):
         nodes=_target_nodes(engagement_id),
         edges=_target_edges(engagement_id),
     )
+
+
+@bp.route("/engagements/<int:engagement_id>/targets/<int:node_id>")
+@jwt_required()
+def target_detail(engagement_id, node_id):
+    engagement = Engagement.query.get_or_404(engagement_id)
+    node = (
+        InfrastructureNode.query.filter_by(id=node_id, engagement_id=engagement_id)
+        .filter(InfrastructureNode.role.in_(TARGET_ROLES))
+        .first_or_404()
+    )
+    edges = [e for e in _target_edges(engagement_id) if e.source_node_id == node.id or e.target_node_id == node.id]
+    detail = target_detail_service.gather(node)
+    return render_template("targets/detail.html", engagement=engagement, node=node, edges=edges, **detail)
 
 
 @bp.route("/engagements/<int:engagement_id>/targets/new")

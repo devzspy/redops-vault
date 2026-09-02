@@ -26,7 +26,7 @@
             <tbody>
             {% for node in nodes %}
                 <tr>
-                    <td>{{ node.name }}</td>
+                    <td><a href="{{ url_for('targets.target_detail', engagement_id=engagement.id, node_id=node.id) }}">{{ node.name }}</a></td>
                     <td><span class="badge bg-secondary">{{ node.node_type|node_type_label }}</span></td>
                     <td>{% if node.role %}<span class="badge bg-dark">{{ node.role }}</span>{% else %}-{% endif %}</td>
                     <td>
@@ -48,6 +48,7 @@
                     </td>
                     <td>{{ node.added_by.username }}</td>
                     <td class="text-end">
+                        <a href="{{ url_for('targets.target_detail', engagement_id=engagement.id, node_id=node.id) }}" class="btn btn-sm btn-outline-primary">View</a>
                         <a href="{{ url_for('targets.edit_target_form', engagement_id=engagement.id, node_id=node.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
                         <form method="post" action="{{ url_for('targets.delete_target', engagement_id=engagement.id, node_id=node.id) }}" data-confirm="Delete this target/victim?" class="d-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">

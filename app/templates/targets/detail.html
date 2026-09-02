@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ node.name }} - {{ engagement.name }}{% endblock %}
+{% block content %}
+{% include "_engagement_subnav.html" %}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+    <div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <h2 class="h5 mb-0">{{ node.name }}</h2>
+            <span class="badge bg-secondary">{{ node.node_type|node_type_label }}</span>
+            {% if node.role %}<span class="badge bg-dark">{{ node.role }}</span>{% endif %}
+            {% if node.status %}
+            {% set status_color = 'success' if node.status == 'healthy' else ('warning' if node.status == 'isolated' else 'danger') %}
+            <span class="badge bg-{{ status_color }}">{{ node.status.capitalize() }}</span>
+            {% endif %}
+        </div>
+    </div>
+    <div>
+        <a href="{{ url_for('targets.list_targets', engagement_id=engagement.id) }}" class="btn btn-sm btn-outline-secondary">Back to Targets</a>
+        <a href="{{ url_for('targets.edit_target_form', engagement_id=engagement.id, node_id=node.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row gy-2 small">
+            <div class="col-sm-3"><div class="text-muted">Provider</div><div>{{ node.provider or '-' }}</div></div>
+            <div class="col-sm-3"><div class="text-muted">Region</div><div>{{ node.region or '-' }}</div></div>
+            <div class="col-sm-3"><div class="text-muted">Added by</div><div>{{ node.added_by.username }}</div></div>
+            <div class="col-sm-3"><div class="text-muted">Added</div><div>{{ node.added_at.strftime('%Y-%m-%d %H:%M') }}</div></div>
+            {% if node.services %}
+            <div class="col-12">
+                <div class="text-muted">Services</div>
+                {% for service in node.services %}<span class="badge bg-info text-dark">{{ service.display() }}</span>{% endfor %}
+            </div>
+            {% endif %}
+            {% if node.notes %}
+            <div class="col-12"><div class="text-muted">Notes</div><div>{{ node.notes }}</div></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if edges %}
+<h3 class="h6">Network Pathing</h3>
+<div class="card shadow-sm mb-4">
+    <ul class="list-group list-group-flush">
+        {% for edge in edges %}
+        <li class="list-group-item small">
+            {{ edge.source_node.name }} &rarr; {{ edge.target_node.name }}
+            {% if edge.label %}<span class="text-muted">&mdash; {{ edge.label }}</span>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <h3 class="h6 mb-0">Activity</h3>
+    <div class="d-flex gap-2 flex-wrap small">
+        <span class="badge bg-primary">{{ killchain_entries|length }} kill chain</span>
+        <span class="badge bg-secondary">{{ credentials|length }} credentials</span>
+        <span class="badge bg-info text-dark">{{ loot_files|length }} loot</span>
+        <span class="badge bg-warning text-dark">{{ iocs|length }} IOCs</span>
+        <span class="badge bg-dark">{{ findings|length }} findings</span>
+    </div>
+</div>
+<p class="text-muted small">Credentials, loot, and IOCs are matched to this host by exact name &mdash; anything logged under a different hostname/IP for the same system won't show up here.</p>
+
+<div class="card shadow-sm">
+    {% if timeline %}
+    <ul class="list-group list-group-flush">
+        {% for event in timeline %}
+        <li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                    {% if event.kind == 'killchain' %}
+                    <span class="badge bg-primary">Kill Chain</span>
+                    <a href="{{ url_for('killchain.edit_entry_form', engagement_id=engagement.id, entry_id=event.obj.id) }}">{{ event.obj.title }}</a>
+                    <span class="text-muted small">({{ event.obj.stage_label() }})</span>
+                    {% elif event.kind == 'credential' %}
+                    <span class="badge bg-secondary">Credential</span>
+                    <a href="{{ url_for('loot.edit_credential_form', engagement_id=engagement.id, cred_id=event.obj.id) }}">{{ event.obj.display_label() }}</a>
+                    {% elif event.kind == 'loot' %}
+                    <span class="badge bg-info text-dark">Loot</span>
+                    <a href="{{ url_for('loot.file_detail', engagement_id=engagement.id, file_id=event.obj.id) }}">{{ event.obj.original_filename }}</a>
+                    {% elif event.kind == 'ioc' %}
+                    <span class="badge bg-warning text-dark">IOC</span>
+                    <a href="{{ url_for('ioc.edit_ioc_form', engagement_id=engagement.id, ioc_id=event.obj.id) }}">{{ event.obj.display_label() }}</a>
+                    {% elif event.kind == 'finding' %}
+                    <span class="badge finding-severity-badge finding-severity-{{ event.obj.severity }}">Finding</span>
+                    <a href="{{ url_for('findings.edit_finding_form', engagement_id=engagement.id, finding_id=event.obj.id) }}">{{ event.obj.title }}</a>
+                    {% endif %}
+                </div>
+                <div class="text-muted small text-nowrap">{{ event.timestamp.strftime('%Y-%m-%d %H:%M') if event.timestamp else '-' }}</div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="card-body text-center text-muted py-4">Nothing recorded for this host yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

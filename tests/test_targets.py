@@ -1,3 +1,5 @@
+import io
+
 from tests.conftest import csrf_token
 
 
@@ -456,3 +458,240 @@ def test_edit_target_edge_form_redirects_for_attacker_edge(admin_client):
     resp = admin_client.get(f"/engagements/{engagement_id}/targets/edges/{edge_id}/edit")
     assert resp.status_code == 302
     assert resp.headers["Location"].rstrip("/").endswith(f"/infrastructure/edges/{edge_id}/edit")
+
+
+# ---------------------------------------------------------------- Detail page
+
+def _create_credential(client, engagement_id, username="svc_backup", source_host=""):
+    csrf = csrf_token(client)
+    resp = client.post(
+        f"/engagements/{engagement_id}/credentials",
+        data={
+            "username": username,
+            "password": "hunter2hunter2",
+            "hash": "",
+            "domain": "CORP",
+            "source_host": source_host,
+            "csrf_token": csrf,
+        },
+    )
+    assert resp.status_code == 302
+    with client.application.app_context():
+        from app.models.loot import Credential
+
+        return Credential.query.filter_by(engagement_id=engagement_id, username=username).first().id
+
+
+def _create_ioc(client, engagement_id, location=r"C:\Temp\evil.exe", host=""):
+    csrf = csrf_token(client)
+    resp = client.post(
+        f"/engagements/{engagement_id}/iocs",
+        data={"location": location, "host": host, "csrf_token": csrf},
+    )
+    assert resp.status_code == 302
+    with client.application.app_context():
+        from app.models.ioc import IOC
+
+        return IOC.query.filter_by(engagement_id=engagement_id, location=location).first().id
+
+
+def _upload_loot(client, engagement_id, filename="screenshot.png", associated_host=""):
+    csrf = csrf_token(client)
+    resp = client.post(
+        f"/engagements/{engagement_id}/loot/upload",
+        data={
+            "file": (io.BytesIO(b"evidence"), filename),
+            "category": "screenshot",
+            "associated_host": associated_host,
+            "csrf_token": csrf,
+        },
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 302
+    return int(resp.headers["Location"].rstrip("/").split("/")[-1])
+
+
+def _create_killchain_entry(client, engagement_id, title="Beacon established", infra_node_id=None):
+    csrf = csrf_token(client)
+    resp = client.post(
+        f"/engagements/{engagement_id}/killchain",
+        data={
+            "stage": "installation",
+            "title": title,
+            "description": "",
+            "host": "",
+            "infra_node_id": str(infra_node_id) if infra_node_id else "",
+            "occurred_at": "",
+            "csrf_token": csrf,
+        },
+    )
+    assert resp.status_code == 302
+    with client.application.app_context():
+        from app.models.killchain import KillChainEntry
+
+        return KillChainEntry.query.filter_by(engagement_id=engagement_id, title=title).first().id
+
+
+def _create_finding_with_infra_node(client, engagement_id, title, infra_node_id):
+    csrf = csrf_token(client)
+    resp = client.post(
+        f"/engagements/{engagement_id}/findings",
+        data={
+            "title": title,
+            "severity": "high",
+            "details": "",
+            "remediation": "",
+            "infra_node_ids": [str(infra_node_id)],
+            "csrf_token": csrf,
+        },
+    )
+    assert resp.status_code == 302
+
+
+def test_target_list_links_to_detail_page(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="dc01.corp.local")
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets")
+    assert resp.status_code == 200
+    assert f"/engagements/{engagement_id}/targets/{node_id}".encode() in resp.data
+
+
+def test_target_detail_renders_node_info(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="dc01.corp.local", role="target")
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_id}")
+    assert resp.status_code == 200
+    assert b"dc01.corp.local" in resp.data
+    assert b"Nothing recorded for this host yet." in resp.data
+
+
+def test_target_detail_404s_for_attacker_node(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_infra_node(admin_client, engagement_id)
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_id}")
+    assert resp.status_code == 404
+
+
+def test_target_detail_404s_for_wrong_engagement(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    other_engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="dc01.corp.local")
+
+    resp = admin_client.get(f"/engagements/{other_engagement_id}/targets/{node_id}")
+    assert resp.status_code == 404
+
+
+def test_target_detail_shows_killchain_entry_linked_by_infra_node_id(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="dc01.corp.local")
+    _create_killchain_entry(admin_client, engagement_id, title="Dumped hashes via Mimikatz", infra_node_id=node_id)
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_id}")
+    assert resp.status_code == 200
+    assert b"Dumped hashes via Mimikatz" in resp.data
+
+
+def test_target_detail_excludes_killchain_entry_for_other_node(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="dc01.corp.local")
+    other_node_id = _create_target(admin_client, engagement_id, name="finance-pc.corp.local", role="victim")
+    _create_killchain_entry(admin_client, engagement_id, title="Unrelated activity", infra_node_id=other_node_id)
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_id}")
+    assert resp.status_code == 200
+    assert b"Unrelated activity" not in resp.data
+
+
+def test_target_detail_shows_credential_matched_by_host_name(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="dc01.corp.local")
+    _create_credential(admin_client, engagement_id, username="Administrator", source_host="dc01.corp.local")
+    _create_credential(admin_client, engagement_id, username="unrelated_svc", source_host="other-host.corp.local")
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_id}")
+    assert resp.status_code == 200
+    assert b"Administrator" in resp.data
+    assert b"unrelated_svc" not in resp.data
+
+
+def test_target_detail_credential_match_is_case_insensitive(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="DC01.corp.local")
+    _create_credential(admin_client, engagement_id, username="Administrator", source_host="dc01.CORP.LOCAL")
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_id}")
+    assert resp.status_code == 200
+    assert b"Administrator" in resp.data
+
+
+def test_target_detail_shows_ioc_matched_by_host(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="dc01.corp.local")
+    _create_ioc(admin_client, engagement_id, location=r"C:\Windows\Temp\mimikatz.exe", host="dc01.corp.local")
+    _create_ioc(admin_client, engagement_id, location=r"C:\Temp\unrelated.exe", host="other-host.corp.local")
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_id}")
+    assert resp.status_code == 200
+    assert rb"mimikatz.exe" in resp.data
+    assert rb"unrelated.exe" not in resp.data
+
+
+def test_target_detail_shows_loot_matched_by_associated_host(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="dc01.corp.local")
+    _upload_loot(admin_client, engagement_id, filename="lsass_dump.dmp", associated_host="dc01.corp.local")
+    _upload_loot(admin_client, engagement_id, filename="unrelated.png", associated_host="other-host.corp.local")
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_id}")
+    assert resp.status_code == 200
+    assert b"lsass_dump.dmp" in resp.data
+    assert b"unrelated.png" not in resp.data
+
+
+def test_target_detail_shows_finding_linked_via_infra_node_ids(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_id, name="dc01.corp.local")
+    _create_finding_with_infra_node(admin_client, engagement_id, "Domain Admin compromise", node_id)
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_id}")
+    assert resp.status_code == 200
+    assert b"Domain Admin compromise" in resp.data
+
+
+def test_target_detail_shows_network_pathing_edge(admin_client):
+    engagement_id = _create_engagement(admin_client)
+    node_a = _create_target(admin_client, engagement_id, name="dc01.corp.local", role="target")
+    node_b = _create_target(admin_client, engagement_id, name="finance-pc.corp.local", role="victim")
+    csrf = csrf_token(admin_client)
+    admin_client.post(
+        f"/engagements/{engagement_id}/targets/edges",
+        data={
+            "source_node_id": str(node_a),
+            "target_node_id": str(node_b),
+            "label": "SMB lateral move",
+            "notes": "",
+            "csrf_token": csrf,
+        },
+    )
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_a}")
+    assert resp.status_code == 200
+    assert b"SMB lateral move" in resp.data
+
+    resp = admin_client.get(f"/engagements/{engagement_id}/targets/{node_b}")
+    assert resp.status_code == 200
+    assert b"SMB lateral move" in resp.data
+
+
+def test_target_detail_does_not_leak_across_engagements(admin_client):
+    engagement_a = _create_engagement(admin_client)
+    engagement_b = _create_engagement(admin_client)
+    node_id = _create_target(admin_client, engagement_a, name="dc01.corp.local")
+    _create_credential(admin_client, engagement_b, username="other_engagement_admin", source_host="dc01.corp.local")
+
+    resp = admin_client.get(f"/engagements/{engagement_a}/targets/{node_id}")
+    assert resp.status_code == 200
+    assert b"other_engagement_admin" not in resp.data

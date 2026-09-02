@@ -45,6 +45,18 @@ def register(mcp):
         return client.get(f"/engagements/{engagement_id}/targets/nodes/{node_id}")
 
     @mcp.tool()
+    def target_detail_get(engagement_id: int, node_id: int) -> dict:
+        """Get the full 'one stop shop' view of a target/victim node: the
+        node itself, its network-pathing edges, and every kill chain entry,
+        credential, loot file, IOC, and finding correlated to it, plus that
+        same set merged into one reverse-chronological timeline. Credentials
+        and loot are matched to this host by exact (case-insensitive) name
+        -- entries logged under a different hostname/IP for the same system
+        won't appear. Credential secrets are omitted; use credential_get
+        with reveal=True for those."""
+        return client.get(f"/engagements/{engagement_id}/targets/nodes/{node_id}/detail")
+
+    @mcp.tool()
     def target_update(
         engagement_id: int,
         node_id: int,

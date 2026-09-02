@@ -12,7 +12,7 @@ from app.models.infrastructure import (
     InfrastructureEdge,
     InfrastructureNode,
 )
-from app.services import activity_service
+from app.services import activity_service, target_detail_service
 
 bp = Blueprint("api_targets", __name__, url_prefix="/api/v1/engagements/<int:engagement_id>/targets")
 
@@ -69,6 +69,18 @@ def create_target(engagement_id):
 def get_target(engagement_id, node_id):
     node = _target_nodes_query(engagement_id).filter(InfrastructureNode.id == node_id).first_or_404()
     return jsonify(serializers.infra_node_dict(node))
+
+
+@bp.route("/nodes/<int:node_id>/detail", methods=["GET"])
+def get_target_detail(engagement_id, node_id):
+    node = _target_nodes_query(engagement_id).filter(InfrastructureNode.id == node_id).first_or_404()
+    edges = [
+        e
+        for e in InfrastructureEdge.query.filter_by(engagement_id=engagement_id).all()
+        if e.source_node_id == node.id or e.target_node_id == node.id
+    ]
+    detail = target_detail_service.gather(node)
+    return jsonify(serializers.target_detail_dict(node, edges, detail))
 
 
 @bp.route("/nodes/<int:node_id>", methods=["PATCH"])

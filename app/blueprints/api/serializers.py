@@ -306,6 +306,41 @@ def technique_mapping_dict(mapping):
     }
 
 
+def target_detail_dict(node, edges, detail):
+    """Serializes the same aggregated per-host view the target detail page
+    renders (see app/services/target_detail_service.py): the node itself,
+    its network-pathing edges, and every killchain/credential/loot/IOC/
+    finding correlated to it, plus that same set merged into one
+    chronological timeline. Credentials are embedded without secrets
+    (same default as credential_dict/list_credentials) -- use
+    credential_get(reveal=True) for those.
+    """
+    serializers_by_kind = {
+        "killchain": killchain_entry_dict,
+        "credential": credential_dict,
+        "loot": loot_file_dict,
+        "ioc": ioc_dict,
+        "finding": finding_dict,
+    }
+    return {
+        "node": infra_node_dict(node),
+        "edges": [infra_edge_dict(e) for e in edges],
+        "killchain_entries": [killchain_entry_dict(e) for e in detail["killchain_entries"]],
+        "credentials": [credential_dict(c) for c in detail["credentials"]],
+        "loot_files": [loot_file_dict(f) for f in detail["loot_files"]],
+        "iocs": [ioc_dict(i) for i in detail["iocs"]],
+        "findings": [finding_dict(f) for f in detail["findings"]],
+        "timeline": [
+            {
+                "kind": event["kind"],
+                "timestamp": _iso(event["timestamp"]),
+                "item": serializers_by_kind[event["kind"]](event["obj"]),
+            }
+            for event in detail["timeline"]
+        ],
+    }
+
+
 def activity_entry_dict(entry):
     return {
         "id": entry.id,
