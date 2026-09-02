@@ -216,6 +216,16 @@ so it requires outbound internet access. For air-gapped installs, mirror
   not a merge. `instance/encryption.key` must match between backup and
   restore for loot/credential data to stay decryptable.
 
+## Contributing
+
+Issues and PRs are welcome, including AI-assisted ones — see
+[CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules (in particular,
+every operator-facing feature is expected to stay in sync across the web
+UI, JSON API, MCP server, and CLI — read that before wiring up a new
+feature). Security vulnerabilities should be reported privately per
+[SECURITY.md](SECURITY.md), not as a public issue. This project follows
+the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 Copyright 2026 FalconSpy.

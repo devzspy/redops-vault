@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose a new feature or a change to existing behavior.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For anything that touches the data model, adds a new domain, or
+        changes how an existing feature behaves, opening an issue first
+        (i.e. this one) before writing code saves rework — see
+        [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem?
+      description: What are you trying to do that RedOps Vault doesn't support today, or makes harder than it should?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What you'd like to see. If you already have an implementation approach in mind (e.g. which of the web UI / API / MCP / CLI surfaces it touches), sketch it here.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you thought about, and why you didn't prefer them.
+
+  - type: checkboxes
+    id: contributing
+    attributes:
+      label: Are you planning to open a PR for this yourself?
+      options:
+        - label: "Yes"
+        - label: "No, just proposing it"
