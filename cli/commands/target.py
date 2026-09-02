@@ -89,6 +89,20 @@ def node_get(ctx, engagement_id, node_id):
     emit(ctx, result)
 
 
+@node_group.command("detail")
+@engagement_option
+@click.argument("node_id", type=int)
+@click.pass_context
+def node_detail(ctx, engagement_id, node_id):
+    """Get the full 'one stop shop' view of a target/victim node: the node
+    itself, its network-pathing edges, and every kill chain entry,
+    credential, loot file, IOC, and finding correlated to it, plus that
+    same set merged into one reverse-chronological timeline.
+    """
+    result = client(ctx).get(f"/engagements/{engagement_id}/targets/nodes/{node_id}/detail")
+    emit(ctx, result)
+
+
 @node_group.command("update")
 @engagement_option
 @click.argument("node_id", type=int)

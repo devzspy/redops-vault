@@ -129,6 +129,36 @@ def test_todo_lifecycle(cli_api):
     assert result.exit_code == 0
 
 
+def test_target_node_detail_shows_correlated_records(cli_api):
+    import json
+
+    create = run("--json", "engagement", "create", "--name", "Op Correlate", "--client-name", "Hexagon")
+    engagement_id = json.loads(create.output)["id"]
+
+    create = run(
+        "--json", "target", "node", "create", "-e", str(engagement_id),
+        "--type", "hostname", "--name", "dc01.corp.local", "--role", "target",
+    )
+    node_id = json.loads(create.output)["id"]
+
+    result = run(
+        "--json", "credential", "create", "-e", str(engagement_id),
+        "--username", "svc_backup", "--password", "hunter2hunter2", "--source-host", "DC01.CORP.LOCAL",
+    )
+    assert result.exit_code == 0, result.output
+
+    result = run("--json", "target", "node", "detail", "-e", str(engagement_id), str(node_id))
+    assert result.exit_code == 0, result.output
+    detail = json.loads(result.output)
+
+    assert detail["node"]["name"] == "dc01.corp.local"
+    assert len(detail["credentials"]) == 1
+    assert detail["credentials"][0]["username"] == "svc_backup"
+    assert "secrets" not in detail["credentials"][0]
+    assert len(detail["timeline"]) == 1
+    assert detail["timeline"][0]["kind"] == "credential"
+
+
 def test_config_set_and_show(tmp_path, monkeypatch):
     monkeypatch.setattr("cli.config.config_path", lambda: tmp_path / "config.json")
     result = run("config", "set-url", "http://example.local/api/v1")
